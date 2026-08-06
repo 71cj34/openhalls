@@ -1,0 +1,7 @@
+*.json
+*.xml
+.env
+
+*.exe
+*.test
+go.sum
