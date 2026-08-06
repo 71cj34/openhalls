@@ -21,7 +21,7 @@ func initcheck() []bool {
 
 	exists := make([]bool, len(baseDirs))
 	for i, base := range baseDirs {
-		exists[i] = true // assume OK until proven otherwise
+		exists[i] = true
 
 		filepath.Walk(base, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
@@ -32,7 +32,7 @@ func initcheck() []bool {
 				if rel == "." || rel == "" {
 					return nil
 				}
-				// Check if this subfolder has the required files
+
 				if dataBaseDirs[base] {
 					files, _ := filepath.Glob(filepath.Join(path, "*.json"))
 					if len(files) == 0 {
@@ -97,11 +97,9 @@ func main() {
 			fmt.Println()
 			fmt.Println(`Press [Enter] to continue...`)
 
-			// Wait for user input
 			scanner := bufio.NewScanner(os.Stdin)
 			scanner.Scan()
 
-			// Show main menu
 			clearScreen()
 			for {
 				printH1("home")
@@ -143,7 +141,7 @@ func main() {
 				default:
 				printText("Invalid choice, please enter 1-4\n")
 				printText("\n")
-				// Pause before redrawing menu
+
 				printText("Press [Enter] to continue...")
 					scanner.Scan()
 					clearScreen()
