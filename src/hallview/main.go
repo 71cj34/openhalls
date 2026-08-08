@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 	"path/filepath"
+	"io/fs"
 
 	"github.com/spf13/cobra"
 	"github.com/fatih/color"
@@ -51,6 +52,22 @@ func initcheck() []bool {
 
 	return exists
 }
+
+func printLoaded() error {
+	root := "schedules"
+	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !d.IsDir() && strings.HasSuffix(strings.ToLower(d.Name()), ".json") {
+			printText(d.Name())
+		}
+		return nil
+	})
+
+}
+
 
 func main() {
 	var logo = `
@@ -103,6 +120,9 @@ func main() {
 			clearScreen()
 			for {
 				printH1("home")
+				fmt.Println()
+				printH2("Detected Files", color.New(color.FgGreen))
+				printLoaded()
 				fmt.Println()
 				printH2("Favorites", color.New(color.FgRed))
 				printFavs()

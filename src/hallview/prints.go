@@ -9,7 +9,7 @@ import (
 
 func printH1(txt string) {
 	postfill := " " + strings.Repeat("=", TERM_LENGTH-1)
-	color.RGB(50, 114, 255).Printf("| > /%s%s|\n", txt, strings.Repeat(" ", TERM_LENGTH-4-len(txt)))
+	color.RGB(50, 114, 255).Printf("| > /%s%s|\n", txt, strings.Repeat(" ", TERM_LENGTH-5-len(txt)))
 	color.RGB(50, 114, 255).Println(postfill)
 }
 
