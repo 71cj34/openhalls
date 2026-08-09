@@ -30,6 +30,23 @@ func printH2(txt string, col ...*color.Color) {
 	c.Printf("| %s%s|\n", txt, strings.Repeat(" ", TERM_LENGTH - 2 - len(txt)))
 }
 
+func printH3(txt string, col ...*color.Color) {
+
+ 	var c *color.Color
+		if len(col) > 0 && col[0] != nil {
+		    c = col[0]
+		} else {
+		    // color.RGB returns *color.Color
+		    c = color.RGB(0, 0, 0)
+		}
+
+
+	prefill := strings.Repeat("-", TERM_LENGTH)
+	c.Print(prefill + "\n")
+	if txt != "" {
+		c.Printf("%s\n", txt)
+	}
+}
 const indent = "   "
 
 func printText(txt string) {
