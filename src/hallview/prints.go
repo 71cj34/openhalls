@@ -57,3 +57,21 @@ func printTextf(format string, a ...interface{}) {
 	fmt.Print(indent)
 	fmt.Printf(format, a...)
 }
+
+func logf(format string, a ...interface{}) {
+	green := color.New(color.FgGreen)
+	green.Printf("[LOG] ")
+	fmt.Printf(format, a...)
+}
+
+func wrnf(format string, a ...interface{}) {
+	green := color.New(color.FgYellow)
+	green.Printf("[WRN] ")
+	fmt.Printf(format, a...)
+}
+
+func errf(format string, a ...interface{}) {
+	green := color.New(color.FgRed)
+	green.Printf("[ERR] ")
+	fmt.Printf(format, a...)
+}
