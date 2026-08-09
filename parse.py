@@ -4,6 +4,7 @@ import requests
 from pathlib import Path
 from datetime import datetime, timedelta
 import time
+import re
 
 def tt():
     return int(time.time()) // 60 % 1000
@@ -108,7 +109,7 @@ def process_data_to_schedules(semester_code: str, data_dir: str = "."):
     schedules_folder = Path(data_dir) / "schedules" / semester_code
     schedules_folder.mkdir(parents=True, exist_ok=True)
 
-    building_schedule = {}  # { building: { room_id: [ {start, end, course, display} ] } }
+    building_schedule = {}  # { building: { room_id: [ {day, start, end, course, display} ] } }
 
     for json_file in state_folder.glob("*.json"):
         with open(json_file, "r", encoding="utf-8") as f:
@@ -117,12 +118,19 @@ def process_data_to_schedules(semester_code: str, data_dir: str = "."):
         schedule = data.get("schedule", {})
         for day, rooms in schedule.items():
             for room_key, times in rooms.items():
-                if " - " in room_key:
-                    building, room_id = room_key.split(" - ", 1)
-                else:
-                    building, room_id = room_key, "Unknown"
+                room_entries = room_key.split("; ")
+                for entry in room_entries:
+                    if " - " in entry:
+                        building, room_id = entry.split(" - ", 1)
+                    else:
+                        building, room_id = entry, "Unknown"
 
-                building_schedule.setdefault(building, {}).setdefault(room_id, []).extend(times)
+                    for time_entry in times:
+                        enriched = {**time_entry, "day": day}
+                        building_schedule \
+                            .setdefault(building, {}) \
+                            .setdefault(room_id, []) \
+                            .append(enriched)
 
     output_path = schedules_folder / f"{semester_code}.json"
     with open(output_path, "w", encoding="utf-8") as f:
