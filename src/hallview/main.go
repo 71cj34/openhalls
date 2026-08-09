@@ -4,8 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
-	"runtime"
 	"strings"
 	"path/filepath"
 	"io/fs"
@@ -51,6 +49,14 @@ func initcheck() []bool {
 	}
 
 	return exists
+}
+
+func hasDatabases() bool {
+	files, err := filepath.Glob("src/hallview/data/db/*.db")
+	if err != nil {
+		return false
+	}
+	return len(files) > 0
 }
 
 func printLoaded() error {
@@ -103,13 +109,10 @@ func main() {
 			}
 			folders := []string{"Schedules", "Courses", "State", "XML"}
 			for i, name := range folders {
-				status := "OK"
+				logf("%s folder OK...\n", name)
 				if !ex[i] {
-					status = "NOT OK"
+					logf("%s folder NOT OK...\n", name)
 				}
-
-				colors[i].Printf("[ • ]  ")
-				fmt.Printf("%s folder %s...\n", name, status)
 			}
 			fmt.Println()
 			fmt.Println(`Press [Enter] to continue...`)
@@ -126,15 +129,30 @@ func main() {
 				fmt.Println()
 				printH2("Favorites", color.New(color.FgRed))
 				printFavs()
+				hasDB := hasDatabases()
+
 				fmt.Println()
 				printH2("What would you like to do?")
-				printText("1. Search by Room")
-				printText("2. Search by Time")
-				printText("3. Search by Course")
-				printText("4. Manage Favorites")
-				printText("5. Settings")
-				printText("6. About")
-				printText("7. Exit")
+				if !hasDB {
+					color.Yellow("No databases found. Please rebuild databases first.")
+				}
+				printText("0. Rebuild Databases")
+				if hasDB {
+					printText("1. Search by Room")
+					printText("2. Search by Time")
+					printText("3. Search by Course")
+					printText("4. Custom SQL Query")
+					printText("5. Manage Favorites")
+				} else {
+					color.RGB(211, 211, 211).Print(indent + "1. Search by Room\n")
+					color.RGB(211, 211, 211).Print(indent + "2. Search by Time\n")
+					color.RGB(211, 211, 211).Print(indent + "3. Search by Course\n")
+					color.RGB(211, 211, 211).Print(indent + "4. Custom SQL Query\n")
+					color.RGB(211, 211, 211).Print(indent + "5. Manage Favorites\n")
+				}
+				printText("6. Settings")
+				printText("7. About")
+				printText("8. Exit")
 				fmt.Println()
 				printH2("")
 				printTextf("Enter your choice (1-7): ")
@@ -142,7 +160,17 @@ func main() {
 				scanner.Scan()
 				choice := strings.TrimSpace(scanner.Text())
 
+				if !hasDB && choice >= "1" && choice <= "5" {
+					printText("No databases found. Please rebuild databases first.")
+					printText("Press [Enter] to continue...")
+					scanner.Scan()
+					clearScreen()
+					continue
+				}
+
 				switch choice {
+				case "0":
+					createSchedDB()
 				case "1":
 					handle1()
 				case "2":
@@ -156,10 +184,12 @@ func main() {
 				case "6":
 					handle6()
 				case "7":
+					handle7()
+				case "8":
 					fmt.Println("Exiting...")
 					return
 				default:
-				printText("Invalid choice, please enter 1-4\n")
+				printText("Invalid choice, please enter 0-8\n")
 				printText("\n")
 
 				printText("Press [Enter] to continue...")
@@ -177,13 +207,5 @@ func main() {
 }
 
 func clearScreen() {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		cmd = exec.Command("cmd", "/c", "cls")
-	default: // who is running ts on unix (wilted rose emoji)
-		cmd = exec.Command("clear")
-	}
-	cmd.Stdout = os.Stdout
-	cmd.Run()
+	os.Stdout.WriteString("\x1b[3;J\x1b[H\x1b[2J")
 }
