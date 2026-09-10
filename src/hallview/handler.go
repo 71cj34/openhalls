@@ -182,6 +182,7 @@ func pause() {
 	stdinReader.ReadString('\n')
 }
 
+// todo: get rid of this
 func handle4() {
 	runCustomQuery()
 }
@@ -197,6 +198,15 @@ func handle6() {
 }
 func handle7() {
 	printH1("About")
-	printText("Hallview — find free rooms and lecture times.")
-	pause()
+	fmt.Println()
+	printText("A program made by Jason Cheng with ♡.")
+	fmt.Println()
+	printText("Repository: https://github.com/71cj34/openhalls")
+	printText("Website: https://jasoncheng.me")
+	fmt.Println()
+
+	input, _ := readInputLine("Press enter to return: ")
+	if input != "" {
+		return
+	}
 }
