@@ -82,7 +82,7 @@ func fuzzyPick(noun string, candidates map[string]string, input string) (string,
 		rows = plain
 	}
 	printTable(headers, rows)
-	line, back := readInputLine(fmt.Sprintf("Pick 1-%d [empty = 1, 0 = back, or type to refine]: ", showing))
+	line, back := readInputLine(fmt.Sprintf("Pick 1-%d [0 = back or type to search again]: ", showing))
 	if back || strings.TrimSpace(line) == "0" {
 		return fuzzyPickBack(noun, candidates)
 	}
