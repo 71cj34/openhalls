@@ -143,12 +143,24 @@ func main() {
 				}
 				fmt.Println()
 
-				choice, back := readInputLine("Enter your choice (0-8): ")
+				choice, back := readInputLine("Enter your choice (0-8, a-z for favorites): ")
 				if back {
 					fmt.Println("Exiting...")
 					return
 				}
 				fmt.Println()
+
+				if idx, ok := favHotkeyIndex(choice); ok {
+					favs := loadFavorites()
+					if idx < len(favs) && favHotkey(idx) != "" {
+						if !hasDB {
+							wrnf("No databases found. Pick 0 first.\n")
+							continue
+						}
+						runFavorite(favs[idx])
+						continue
+					}
+				}
 
 				if !hasDB && choice >= "1" && choice <= "5" {
 					wrnf("No databases found. Pick 0 first.\n")
@@ -176,7 +188,7 @@ func main() {
 					fmt.Println("Exiting...")
 					return
 				default:
-					wrnf("Invalid choice %q, please enter 0-8.\n", choice)
+					wrnf("Invalid choice %q, please enter 0-8 or a favorite hotkey.\n", choice)
 				}
 			}
 		},

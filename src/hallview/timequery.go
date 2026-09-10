@@ -54,24 +54,56 @@ func handle2() {
 			continue
 		}
 
-		if q.freeMode {
-			dayHits := printFreeReport(q, results, sources)
-			headers, rows := freeHitsToRows(q.days, dayHits)
-			label := "free-" + fmtClock(q.start) + "-" + fmtClock(q.end)
-			if q.nameLike != "" {
-				label += "-" + q.nameLike
-			}
-			offerExportRows("time", label, headers, rows)
-		} else {
-			dayRows := printBusyReport(q, results, sources)
-			headers, rows := busyRowsToRows(q.days, dayRows)
-			label := "busy-" + fmtClock(q.start) + "-" + fmtClock(q.end)
-			if q.nameLike != "" {
-				label += "-" + q.nameLike
-			}
-			offerExportRows("time", label, headers, rows)
-		}
+		runTimeReport(q, results, sources, true)
 	}
+}
+
+// runTimeReport renders one time query and handles export plus the
+// optional fav prompt, shared by interactive search and favorites.
+func runTimeReport(q timeQuery, results []entry, sources []string, offerFav bool) {
+	if q.limit <= 0 {
+		q.limit = 30
+	}
+	if q.freeMode {
+		dayHits := printFreeReport(q, results, sources)
+		headers, rows := freeHitsToRows(q.days, dayHits)
+		label := "free-" + fmtClock(q.start) + "-" + fmtClock(q.end)
+		if q.nameLike != "" {
+			label += "-" + q.nameLike
+		}
+		offerExportRows("time", label, headers, rows)
+	} else {
+		dayRows := printBusyReport(q, results, sources)
+		headers, rows := busyRowsToRows(q.days, dayRows)
+		label := "busy-" + fmtClock(q.start) + "-" + fmtClock(q.end)
+		if q.nameLike != "" {
+			label += "-" + q.nameLike
+		}
+		offerExportRows("time", label, headers, rows)
+	}
+	if offerFav {
+		offerSaveFavorite(Favorite{
+			Kind:     "time",
+			Days:     append([]string(nil), q.days...),
+			Start:    q.start,
+			End:      q.end,
+			FreeMode: q.freeMode,
+			NameLike: q.nameLike,
+		})
+	}
+}
+
+// runTimeQuery executes a saved time favorite: fetch + report + export,
+// without re-prompting or offering to re-save.
+func runTimeQuery(q timeQuery) {
+	results, sources := querySchedule("day IN ('" + strings.Join(q.days, "','") + "')")
+	if len(results) == 0 {
+		wrnf("No classes on record for those days.\n")
+		pause()
+		return
+	}
+	runTimeReport(q, results, sources, false)
+	pause()
 }
 
 func promptTimeQuery() (timeQuery, queryAction) {

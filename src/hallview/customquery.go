@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -47,21 +48,49 @@ func runCustomQuery() {
 			continue
 		}
 
-		cols, rows, full, sources := execCustomAcrossDBs(targets, query)
-		if cols == nil {
-			continue
-		}
-		if len(rows) == 0 {
-			wrnf("Query ran on %d database(s), 0 rows returned.\n", len(targets))
-			continue
-		}
-		printH2(fmt.Sprintf("Result · %d row(s)%s", len(full), customTruncNote()))
-		if len(sources) > 0 {
-			dimStyle.Printf("%sTerms: %s\n", indent, strings.Join(sources, ", "))
-		}
-		printTable(cols, rows)
-		offerExportRows("sql", "query", cols, full)
+		runSQLReport(targets, query, true)
 	}
+}
+
+// runSQLReport runs one SQL string, prints, offers export, and
+// optionally offers to favorite it. Shared by interactive + favorites.
+func runSQLReport(targets []string, query string, offerFav bool) {
+	cols, rows, full, sources, deduped := execCustomAcrossDBs(targets, query)
+	if cols == nil {
+		return
+	}
+	if len(rows) == 0 {
+		wrnf("Query ran on %d database(s), 0 rows returned.\n", len(targets))
+		return
+	}
+	printH2(fmt.Sprintf("Result · %d row(s)%s", len(full), customTruncNote()))
+	if n := queryLimit(query); n > 0 && deduped > 0 && len(full) < n {
+		wrnf("Query has LIMIT %d but only %d unique row(s) shown; %d duplicate row(s) merged.\n", n, len(full), deduped)
+		printText("Identical rows are merged. Use SELECT DISTINCT or add columns (e.g. start, end, section) to keep rows distinct.")
+	}
+	if len(sources) > 0 {
+		dimStyle.Printf("%sTerms: %s\n", indent, strings.Join(sources, ", "))
+	}
+	printTable(cols, rows)
+	offerExportRows("sql", "query", cols, full)
+	if offerFav {
+		offerSaveFavorite(Favorite{Kind: "sql", SQL: query, Targets: favTargetBases(targets)})
+	}
+}
+
+// runSQLSearch executes a saved SQL favorite without re-prompting or
+// offering to re-save.
+func runSQLSearch(query string, targets []string) {
+	if targets == nil {
+		targets = listDBFiles()
+	}
+	if len(targets) == 0 {
+		wrnf("No databases found. Rebuild databases first (menu option 0).\n")
+		pause()
+		return
+	}
+	runSQLReport(targets, query, false)
+	pause()
 }
 
 var customTruncated bool
@@ -145,13 +174,31 @@ func normalizeCustomSQL(input string) (string, bool) {
 	return "", false
 }
 
-func execCustomAcrossDBs(dbFiles []string, query string) ([]string, [][]string, [][]string, []string) {
+var limitRe = regexp.MustCompile(`(?i)\bLIMIT\s+(\d+)`)
+
+// queryLimit returns the trailing LIMIT n of a single SELECT, or -1.
+// execCustomAcrossDBs runs the query once per term DB and merges the
+// rows, so LIMIT applies per DB, not to the merged result.
+func queryLimit(query string) int {
+	m := limitRe.FindAllStringSubmatch(query, -1)
+	if len(m) == 0 {
+		return -1
+	}
+	n, err := strconv.Atoi(m[len(m)-1][1])
+	if err != nil {
+		return -1
+	}
+	return n
+}
+
+func execCustomAcrossDBs(dbFiles []string, query string) ([]string, [][]string, [][]string, []string, int) {
 	var cols []string
 	var out [][]string
 	var full [][]string
 	var sources []string
 	seen := make(map[string]bool)
 	customTruncated = false
+	deduped := 0
 
 	for _, dbFile := range dbFiles {
 		db, err := sql.Open("sqlite", dbFile)
@@ -164,7 +211,7 @@ func execCustomAcrossDBs(dbFiles []string, query string) ([]string, [][]string, 
 			errf("Query failed in %s: %v\n", filepath.Base(dbFile), err)
 			db.Close()
 			if cols == nil {
-				return nil, nil, nil, nil
+				return nil, nil, nil, nil, 0
 			}
 			continue
 		}
@@ -174,7 +221,7 @@ func execCustomAcrossDBs(dbFiles []string, query string) ([]string, [][]string, 
 				errf("Could not read columns: %v\n", err)
 				rows.Close()
 				db.Close()
-				return nil, nil, nil, nil
+				return nil, nil, nil, nil, 0
 			}
 		}
 		hit := false
@@ -194,14 +241,17 @@ func execCustomAcrossDBs(dbFiles []string, query string) ([]string, [][]string, 
 				raw[i] = rawCell(vals[i])
 			}
 			key := strings.Join(cells, "\x1f")
-			if !seen[key] {
-				seen[key] = true
-				full = append(full, raw)
-				if len(out) < customRowLimit {
-					out = append(out, cells)
-				} else {
-					customTruncated = true
-				}
+			if seen[key] {
+				deduped++
+				hit = true
+				continue
+			}
+			seen[key] = true
+			full = append(full, raw)
+			if len(out) < customRowLimit {
+				out = append(out, cells)
+			} else {
+				customTruncated = true
 			}
 			hit = true
 		}
@@ -212,9 +262,9 @@ func execCustomAcrossDBs(dbFiles []string, query string) ([]string, [][]string, 
 		}
 	}
 	if cols == nil {
-		return nil, nil, nil, nil
+		return nil, nil, nil, nil, 0
 	}
-	return cols, out, full, sources
+	return cols, out, full, sources, deduped
 }
 
 func rawCell(v any) string {

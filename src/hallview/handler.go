@@ -37,15 +37,22 @@ func handle1() {
 			continue
 		}
 
-		results, sources := queryRoom(room)
-		if len(results) == 0 {
-			wrnf("No classes found for %s.\n", room)
-			continue
-		}
+		runRoomSearch(room, true)
+	}
+}
 
-		printRoomReport(room, results, sources)
-		headers, rows := entryRows(results)
-		offerExportRows("room", room, headers, rows)
+func runRoomSearch(room string, offerFav bool) {
+	results, sources := queryRoom(room)
+	if len(results) == 0 {
+		wrnf("No classes found for %s.\n", room)
+		return
+	}
+
+	printRoomReport(room, results, sources)
+	headers, rows := entryRows(results)
+	offerExportRows("room", room, headers, rows)
+	if offerFav {
+		offerSaveFavorite(Favorite{Kind: "room", Room: room})
 	}
 }
 
@@ -187,9 +194,7 @@ func handle4() {
 	runCustomQuery()
 }
 func handle5() {
-	printH1("Manage Favorites")
-	wrnf("Not implemented yet.\n")
-	pause()
+	manageFavorites()
 }
 func handle6() {
 	printH1("Settings")

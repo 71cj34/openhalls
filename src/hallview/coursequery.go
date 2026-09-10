@@ -44,28 +44,38 @@ func handle3() {
 			return
 		}
 
-		results, sources := queryCourse(course)
-		if len(results) == 0 {
-			wrnf("No classes found for %s.\n", course)
-			continue
-		}
-		if secFilter != "" {
-			filtered := results[:0:0]
-			for _, e := range results {
-				if strings.Contains(strings.ToLower(e.section), strings.ToLower(secFilter)) {
-					filtered = append(filtered, e)
-				}
-			}
-			if len(filtered) == 0 {
-				wrnf("No sections of %s matching %q.\n", course, secFilter)
-				continue
-			}
-			results = filtered
-		}
+		runCourseSearch(course, secFilter, true)
+	}
+}
 
-		printCourseReport(course, titles[course], results, sources)
-		headers, rows := entryRows(results)
-		offerExportRows("course", course, headers, rows)
+// runCourseSearch renders one saved or interactive course search without
+// re-prompting. offerFav controls the trailing fav prompt.
+func runCourseSearch(course, secFilter string, offerFav bool) {
+	results, sources := queryCourse(course)
+	if len(results) == 0 {
+		wrnf("No classes found for %s.\n", course)
+		return
+	}
+	filtered := results
+	if strings.TrimSpace(secFilter) != "" {
+		filtered = nil
+		for _, e := range results {
+			if strings.Contains(strings.ToLower(e.section), strings.ToLower(secFilter)) {
+				filtered = append(filtered, e)
+			}
+		}
+		if len(filtered) == 0 {
+			wrnf("No sections of %s matching %q.\n", course, secFilter)
+			return
+		}
+	}
+
+	titles := courseTitles()
+	printCourseReport(course, titles[course], filtered, sources)
+	headers, rows := entryRows(filtered)
+	offerExportRows("course", course, headers, rows)
+	if offerFav {
+		offerSaveFavorite(Favorite{Kind: "course", Course: course, SectionFilter: strings.TrimSpace(secFilter)})
 	}
 }
 
