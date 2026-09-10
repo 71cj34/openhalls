@@ -2,7 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -130,28 +132,71 @@ func queryRoom(room string) ([]entry, []string) {
 	return querySchedule("room = ? ORDER BY day, start", room)
 }
 
-func collectRooms(dbFiles []string) map[string]bool {
-	allRooms := make(map[string]bool)
-	for _, dbFile := range dbFiles {
+func queryCourse(course string) ([]entry, []string) {
+	return querySchedule("course = ? ORDER BY day, start", course)
+}
+
+// collectDistinct scans each term DB for one column and unions the values.
+func collectDistinct(column string) map[string]bool {
+	out := make(map[string]bool)
+	for _, dbFile := range listDBFiles() {
 		db, err := sql.Open("sqlite", dbFile)
 		if err != nil {
 			continue
 		}
-		rows, err := db.Query("SELECT DISTINCT room FROM schedule")
+		rows, err := db.Query("SELECT DISTINCT " + column + " FROM schedule")
 		if err != nil {
 			db.Close()
 			continue
 		}
 		for rows.Next() {
-			var r string
-			if rows.Scan(&r) == nil && r != "" {
-				allRooms[r] = true
+			var v string
+			if rows.Scan(&v) == nil && v != "" {
+				out[v] = true
 			}
 		}
 		rows.Close()
 		db.Close()
 	}
-	return allRooms
+	return out
+}
+
+func collectRooms(dbFiles []string) map[string]bool {
+	_ = dbFiles // legacy param; all term DBs are always scanned
+	return collectDistinct("room")
+}
+
+func collectCourses() map[string]bool {
+	return collectDistinct("course")
+}
+
+// courseTitles maps schedule codes ("ABLD-3CD3") to catalog titles
+// ("Topics in the Black Caribbean..."). Catalog files use spaces
+// ("ABLD 3CD3"), so both directions are normalized to dash form.
+func courseTitles() map[string]string {
+	titles := make(map[string]string)
+	pattern := filepath.Join(coursesDir(), "*.json")
+	files, _ := filepath.Glob(pattern)
+	for _, f := range files {
+		data, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		var catalog []struct {
+			Code  string `json:"code"`
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(data, &catalog); err != nil {
+			continue
+		}
+		for _, c := range catalog {
+			key := strings.ReplaceAll(strings.TrimSpace(c.Code), " ", "-")
+			if key != "" && titles[key] == "" {
+				titles[key] = strings.TrimSpace(c.Title)
+			}
+		}
+	}
+	return titles
 }
 
 // roomDayIndex groups entries as room -> day -> classes, plus a

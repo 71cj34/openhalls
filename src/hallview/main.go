@@ -1,11 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
-	"strings"
 	"path/filepath"
+	"strings"
 	"io/fs"
 	"time"
 
@@ -103,11 +102,8 @@ func main() {
 			}
 
 			warnStyle.Println("  Preparing UI...")
-			time.Sleep(4 * time.Second)
+			time.Sleep(3 * time.Second)
 			fmt.Println()
-
-
-			scanner := bufio.NewScanner(os.Stdin)
 
 			for {
 				printH1("home")
@@ -146,12 +142,13 @@ func main() {
 					}
 				}
 				fmt.Println()
-				printTextf("Enter your choice (0-8): ")
+				printText("Tip: Backspace on an empty line goes back.")
 
-				if !scanner.Scan() {
+				choice, back := readInputLine("Enter your choice (0-8): ")
+				if back {
+					fmt.Println("Exiting...")
 					return
 				}
-				choice := strings.TrimSpace(scanner.Text())
 				fmt.Println()
 
 				if !hasDB && choice >= "1" && choice <= "5" {

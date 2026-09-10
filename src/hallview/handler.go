@@ -3,9 +3,9 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
-	"os"
 
 	"github.com/fatih/color"
 )
@@ -31,14 +31,15 @@ func handle1() {
 
 	for {
 		fmt.Println()
-		printTextf("Room name or keyword (empty = back): ")
-		input, _ := reader.ReadString('\n')
-		input = strings.TrimSpace(input)
-		if input == "" {
+		input, back := readInputLine("Room name or keyword (Backspace = back): ")
+		if back {
 			return
 		}
+		if strings.TrimSpace(input) == "" {
+			continue
+		}
 
-		room, ok := pickRoom(reader, allRooms, input)
+		room, ok := fuzzyPick(reader, "room", keysAsCandidates(allRooms), input)
 		if !ok {
 			continue
 		}
@@ -50,66 +51,9 @@ func handle1() {
 		}
 
 		printRoomReport(room, results, sources)
+		headers, rows := entryRows(results)
+		offerExportRows("room", room, headers, rows)
 	}
-}
-
-// pickRoom resolves input to one room. Exact match wins; otherwise it
-// shows a short numbered shortlist instead of silently guessing.
-func pickRoom(reader *bufio.Reader, allRooms map[string]bool, input string) (string, bool) {
-	for r := range allRooms {
-		if strings.EqualFold(r, input) {
-			return r, true
-		}
-	}
-
-	lowerInput := strings.ToLower(input)
-	type candidate struct {
-		room  string
-		score int
-	}
-	var candidates []candidate
-	for r := range allRooms {
-		lowerRoom := strings.ToLower(r)
-		if !strings.Contains(lowerRoom, lowerInput) {
-			continue
-		}
-		score := 100
-		if strings.HasPrefix(lowerRoom, lowerInput) {
-			score += 50
-		}
-		score += max(0, 20-len(r))
-		candidates = append(candidates, candidate{room: r, score: score})
-	}
-	sort.Slice(candidates, func(i, j int) bool {
-		if candidates[i].score != candidates[j].score {
-			return candidates[i].score > candidates[j].score
-		}
-		return candidates[i].room < candidates[j].room
-	})
-
-	if len(candidates) == 0 {
-		wrnf("No rooms matching %q.\n", input)
-		return "", false
-	}
-
-	limit := min(5, len(candidates))
-	printH2(fmt.Sprintf("%d match(es), showing %d", len(candidates), limit))
-	rows := make([][]string, 0, limit)
-	for i := 0; i < limit; i++ {
-		rows = append(rows, []string{fmt.Sprintf("%d", i+1), candidates[i].room})
-	}
-	printTable([]string{"#", "Room"}, rows)
-	printTextf("Pick 1-%d [1], or type to refine: ", limit)
-	line, _ := reader.ReadString('\n')
-	line = strings.TrimSpace(line)
-	if line == "" {
-		return candidates[0].room, true
-	}
-	var n int
-	if _, err := fmt.Sscanf(line, "%d", &n); err == nil && n >= 1 && n <= limit {
-		return candidates[n-1].room, true
-	}
-	return pickRoom(reader, allRooms, line)
 }
 
 // printRoomReport renders one compact table per day plus a free-time
@@ -245,15 +189,8 @@ func pause() {
 	bufio.NewReader(os.Stdin).ReadString('\n')
 }
 
-func handle3() {
-	printH1("Search by Course")
-	wrnf("Not implemented yet.\n")
-	pause()
-}
 func handle4() {
-	printH1("Custom SQL Query")
-	wrnf("Not implemented yet.\n")
-	pause()
+	runCustomQuery()
 }
 func handle5() {
 	printH1("Manage Favorites")

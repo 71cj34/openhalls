@@ -43,7 +43,7 @@ func handle2() {
 	for {
 		fmt.Println()
 		printText("Find rooms free (or busy) in a time window.")
-		printText("Empty day/start = back to menu.")
+		printText("Backspace on day/start = back to menu.")
 		q, action := promptTimeQuery(reader)
 		switch action {
 		case queryBack:
@@ -59,9 +59,21 @@ func handle2() {
 		}
 
 		if q.freeMode {
-			printFreeReport(q, results, sources)
+			dayHits := printFreeReport(q, results, sources)
+			headers, rows := freeHitsToRows(q.days, dayHits)
+			label := "free-" + fmtClock(q.start) + "-" + fmtClock(q.end)
+			if q.nameLike != "" {
+				label += "-" + q.nameLike
+			}
+			offerExportRows("time", label, headers, rows)
 		} else {
-			printBusyReport(q, results, sources)
+			dayRows := printBusyReport(q, results, sources)
+			headers, rows := busyRowsToRows(q.days, dayRows)
+			label := "busy-" + fmtClock(q.start) + "-" + fmtClock(q.end)
+			if q.nameLike != "" {
+				label += "-" + q.nameLike
+			}
+			offerExportRows("time", label, headers, rows)
 		}
 	}
 }
@@ -69,9 +81,13 @@ func handle2() {
 func promptTimeQuery(reader *bufio.Reader) (timeQuery, queryAction) {
 	q := timeQuery{limit: 30}
 
-	line, ok := promptLine(reader, "Day(s) [Mon-Fri, e.g. Mon,Wed or Mon-Fri, empty = back]: ")
-	if !ok || strings.TrimSpace(line) == "" {
+	line, ok := promptLine(reader, "Day(s) [Mon-Fri, e.g. Mon,Wed or Mon-Fri, Backspace = back]: ")
+	if !ok {
 		return q, queryBack
+	}
+	if strings.TrimSpace(line) == "" {
+		wrnf("Enter a day (Backspace to go back).\n")
+		return q, queryRetry
 	}
 	days, valid := parseDays(line, dayOrder)
 	if !valid {
@@ -80,9 +96,13 @@ func promptTimeQuery(reader *bufio.Reader) (timeQuery, queryAction) {
 	}
 	q.days = days
 
-	line, ok = promptLine(reader, "Start [e.g. 10:30am, 13:30, empty = back]: ")
-	if !ok || strings.TrimSpace(line) == "" {
+	line, ok = promptLine(reader, "Start [e.g. 10:30am, 13:30, Backspace = back]: ")
+	if !ok {
 		return q, queryBack
+	}
+	if strings.TrimSpace(line) == "" {
+		wrnf("Enter a start time (Backspace to go back).\n")
+		return q, queryRetry
 	}
 	start, err := parseClock(strings.TrimSpace(line))
 	if err != nil {
@@ -137,13 +157,9 @@ const (
 )
 
 func promptLine(reader *bufio.Reader, label string) (string, bool) {
-	printTextf("%s", label)
-	line, err := reader.ReadString('\n')
-	if err != nil {
-		return "", false
-	}
-	line = strings.TrimSpace(line)
-	if line == "" && strings.Contains(label, "back") {
+	_ = reader
+	line, back := readInputLine(label)
+	if back {
 		return "", false
 	}
 	return line, true
@@ -151,7 +167,8 @@ func promptLine(reader *bufio.Reader, label string) (string, bool) {
 
 // printFreeReport lists rooms free for the whole window, grouped by
 // day, with "free until" so the reader can plan the next block.
-func printFreeReport(q timeQuery, results []entry, sources []string) {
+// Returns per-day hits for CSV export (full list, not the 30-row view).
+func printFreeReport(q timeQuery, results []entry, sources []string) map[string][]roomHit {
 	index, buildingOf := roomDayIndex(results)
 	title := "Free rooms"
 	if q.nameLike != "" {
@@ -163,6 +180,7 @@ func printFreeReport(q timeQuery, results []entry, sources []string) {
 	}
 
 	like := strings.ToLower(q.nameLike)
+	dayHits := make(map[string][]roomHit, len(q.days))
 	for _, day := range q.days {
 		label := dayNames[day]
 		var hits []roomHit
@@ -207,13 +225,18 @@ func printFreeReport(q timeQuery, results []entry, sources []string) {
 		if len(hits) > q.limit {
 			dimStyle.Printf("%s… and %d more (refine with a room filter)\n", indent, len(hits)-q.limit)
 		}
+		if len(hits) > 0 {
+			dayHits[day] = hits
+		}
 	}
 	fmt.Println()
+	return dayHits
 }
 
 // printBusyReport lists classes overlapping the window, grouped by
 // day — the inverse question ("what's on right now / sit in on?").
-func printBusyReport(q timeQuery, results []entry, sources []string) {
+// Returns per-day display rows for CSV export (full list).
+func printBusyReport(q timeQuery, results []entry, sources []string) map[string][][]string {
 	title := "Occupied rooms"
 	if q.nameLike != "" {
 		title += fmt.Sprintf(" matching %q", q.nameLike)
@@ -224,6 +247,7 @@ func printBusyReport(q timeQuery, results []entry, sources []string) {
 	}
 
 	like := strings.ToLower(q.nameLike)
+	dayRows := make(map[string][][]string, len(q.days))
 	for _, day := range q.days {
 		label := dayNames[day]
 		var rows [][]string
@@ -257,6 +281,11 @@ func printBusyReport(q timeQuery, results []entry, sources []string) {
 			continue
 		}
 		sectionStyle.Printf("%s%s — %d class(es)\n", indent, label, len(rows))
+		if len(rows) > 0 {
+			full := make([][]string, len(rows))
+			copy(full, rows)
+			dayRows[day] = full
+		}
 		if len(rows) > q.limit {
 			dimStyle.Printf("%sShowing %d of %d (refine with a room filter)\n", indent, q.limit, len(rows))
 			rows = rows[:q.limit]
@@ -264,6 +293,7 @@ func printBusyReport(q timeQuery, results []entry, sources []string) {
 		printTable([]string{"Time", "Room", "Course", "Section"}, rows)
 	}
 	fmt.Println()
+	return dayRows
 }
 
 var dayAliases = map[string]string{
