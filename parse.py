@@ -29,27 +29,54 @@ def process_course_data(path, semester_code):
     }
 
     schedule_map = {} # { day: { room: [ {start, end, course_code, section} ] } }
+    seen = set() # (day, room, start, end, course, display)
 
     for sel in root.findall('.//uselection'):
         time_map = {tb.attrib['id']: tb.attrib for tb in sel.findall('timeblock')}
 
         for block in sel.findall('.//selection/block'):
-            day_ids = block.attrib['timeblockids'].split(',')
-            for tid in day_ids:
-                if tid in time_map:
-                    t = time_map[tid]
-                    room = block.attrib.get('location') or "TBD"
+            raw_tids = (block.attrib.get('timeblockids') or '').strip()
+            if not raw_tids:
+                continue
+            try:
+                loos = json.loads(block.attrib.get('loos') or '{}')
+            except (json.JSONDecodeError, TypeError):
+                loos = {}
+            if not isinstance(loos, dict):
+                loos = {}
+            fallback_room = block.attrib.get('location') or "TBD"
 
-                    entry = {
-                        "start": int(t['t1']),
-                        "end": int(t['t2']),
-                        "course": course_info['code'],
-                        "display": block.attrib['disp']
-                    }
+            for tid in raw_tids.split(','):
+                tid = tid.strip()
+                if not tid or tid not in time_map:
+                    continue
+                t = time_map[tid]
+                # locs maps tid -> room for split-location blocks (e.g. Tue in JHE, Thu in ETB)
+                room = (loos.get(tid) or fallback_room or "TBD").strip() or "TBD"
 
-                    # Nesting: Day -> Room -> List of courses
-                    day = t['day']
-                    schedule_map.setdefault(day, {}).setdefault(room, []).append(entry)
+                try:
+                    start, end = int(t['t1']), int(t['t2'])
+                except (KeyError, TypeError, ValueError):
+                    continue
+                day = t.get('day')
+                if day is None:
+                    continue
+                display = block.attrib.get('disp') or ''
+
+                key = (day, room, start, end, course_info['code'], display)
+                if key in seen:
+                    continue
+                seen.add(key)
+
+                entry = {
+                    "start": start,
+                    "end": end,
+                    "course": course_info['code'],
+                    "display": display
+                }
+
+                # Day -> Room -> List of courses
+                schedule_map.setdefault(day, {}).setdefault(room, []).append(entry)
 
     return {"course": course_info, "schedule": schedule_map}
 
@@ -110,6 +137,7 @@ def process_data_to_schedules(semester_code: str, data_dir: str = "."):
     schedules_folder.mkdir(parents=True, exist_ok=True)
 
     building_schedule = {}  # { building: { room_id: [ {day, start, end, course, display} ] } }
+    seen = set()
 
     for json_file in state_folder.glob("*.json"):
         with open(json_file, "r", encoding="utf-8") as f:
@@ -126,6 +154,12 @@ def process_data_to_schedules(semester_code: str, data_dir: str = "."):
                         building, room_id = entry, "Unknown"
 
                     for time_entry in times:
+                        key = (building, room_id, day, time_entry.get("start"),
+                               time_entry.get("end"), time_entry.get("course"),
+                               time_entry.get("display"))
+                        if key in seen:
+                            continue
+                        seen.add(key)
                         enriched = {**time_entry, "day": day}
                         building_schedule \
                             .setdefault(building, {}) \
