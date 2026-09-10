@@ -6,4 +6,4 @@ def render_spaced(text, space=2):
 
     print(f)
 
-print(render_spaced("", space=3))
+print(render_spaced("OpenHalls", space=3))

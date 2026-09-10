@@ -11,8 +11,8 @@ import (
 )
 
 func createSchedDB() {
-	scheduleDir := "schedules"
-	dbDir := filepath.Join("src", "hallview", "data", "db")
+	scheduleDir := scheduleDir()
+	dbDir := dbDir()
 
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
 		errf("Error creating db directory: %v\n", err)
