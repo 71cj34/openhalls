@@ -5,10 +5,8 @@ import (
 	"path/filepath"
 )
 
-// repoRoot finds the repo top-level (the dir containing "schedules").
-// It checks the executable location first so the binary works from any
-// CWD, then falls back to CWD and its parents (covers `go run` / `go test`
-// from src/hallview). Falls back to CWD when nothing matches.
+// we gotta do all this so that the executable works from every cwd
+// probably isn't even needed......
 func repoRoot() string {
 	var candidates []string
 

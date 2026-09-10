@@ -52,8 +52,7 @@ func runCustomQuery() {
 	}
 }
 
-// runSQLReport runs one SQL string, prints, offers export, and
-// optionally offers to favorite it. Shared by interactive + favorites.
+// HANDLES CUSTOM SQL
 func runSQLReport(targets []string, query string, offerFav bool) {
 	cols, rows, full, sources, deduped := execCustomAcrossDBs(targets, query)
 	if cols == nil {
@@ -78,8 +77,7 @@ func runSQLReport(targets []string, query string, offerFav bool) {
 	}
 }
 
-// runSQLSearch executes a saved SQL favorite without re-prompting or
-// offering to re-save.
+// EXECUTE ONLY (FOR FAVS)
 func runSQLSearch(query string, targets []string) {
 	if targets == nil {
 		targets = listDBFiles()
@@ -111,10 +109,10 @@ func printCustomHelp(dbFiles []string) {
 	printText("Columns: building TEXT, room TEXT, start INTEGER,")
 	printText("         end INTEGER, day TEXT, course TEXT, section TEXT")
 	fmt.Println()
-	printText("  		start/end: minutes since midnight (630 = 10:30 AM).")
-	printText("  		day: 2=Monday, 3=Tuesday, 4=Wednesday, 5=Thursday, 6=Friday.")
-	printText("  		course: e.g. ABLD-3CD3.")
-	printText("			section: e.g. C01 or L01.")
+	printText("  	start/end: minutes since midnight (630 = 10:30 AM).")
+	printText("  	day: 2=Monday, 3=Tuesday, 4=Wednesday, 5=Thursday, 6=Friday.")
+	printText("  	course: e.g. ABLD-3CD3.")
+	printText("		section: e.g. C01 or L01.")
 	fmt.Println()
 	printText("Rules: single SELECT (or WITH...SELECT) only, one statement,")
 	printText("no semicolon stacking. Capped at 100 rows.")
@@ -176,9 +174,9 @@ func normalizeCustomSQL(input string) (string, bool) {
 
 var limitRe = regexp.MustCompile(`(?i)\bLIMIT\s+(\d+)`)
 
-// queryLimit returns the trailing LIMIT n of a single SELECT, or -1.
-// execCustomAcrossDBs runs the query once per term DB and merges the
-// rows, so LIMIT applies per DB, not to the merged result.
+// queryLimit returns the trailing LIMIT n of a single SELECT
+// execCustomAcrossDBs runs query once per DB and merges the
+// rows, so LIMIT applies per DB, not to the merged result
 func queryLimit(query string) int {
 	m := limitRe.FindAllStringSubmatch(query, -1)
 	if len(m) == 0 {

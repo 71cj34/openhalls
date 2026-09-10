@@ -48,8 +48,6 @@ func handle3() {
 	}
 }
 
-// runCourseSearch renders one saved or interactive course search without
-// re-prompting. offerFav controls the trailing fav prompt.
 func runCourseSearch(course, secFilter string, offerFav bool) {
 	results, sources := queryCourse(course)
 	if len(results) == 0 {
@@ -79,9 +77,7 @@ func runCourseSearch(course, secFilter string, offerFav bool) {
 	}
 }
 
-// printCourseReport groups a course's meetings by section, each with
-// its weekly pattern on one line — the question is "when/where does
-// C01 meet?", not "list every row".
+// MAIN
 func printCourseReport(course, title string, results []entry, sources []string) {
 	head := course
 	if title != "" {
@@ -116,8 +112,6 @@ type sectionGroup struct {
 	rows    []entry
 }
 
-// pattern compresses a section's meetings to "Mon 10:30 AM–11:20 AM ·
-// BSB_147" when uniform, else "Mon/Wed/Fri · 2 rooms".
 func (s sectionGroup) pattern() string {
 	days := map[string]bool{}
 	rooms := map[string]bool{}

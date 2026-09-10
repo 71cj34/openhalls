@@ -78,8 +78,6 @@ func printTextf(format string, a ...interface{}) {
 	fmt.Printf(format, a...)
 }
 
-// printStatus renders one initcheck line: "✓ Schedules" instead of
-// the old OK... / NOT OK... double-log noise.
 func printStatus(ok bool, label string) {
 	mark := "✓"
 	style := okStyle
@@ -90,9 +88,7 @@ func printStatus(ok bool, label string) {
 	fmt.Printf("%s%s %s\n", indent, style.Sprint(mark), label)
 }
 
-// printTable renders rows as one-line-per-entry with an aligned
-// header. This replaces the old 5-line rainbow card per class,
-// which is what made large result sets unreadable.
+// pretty print
 func printTable(headers []string, rows [][]string) {
 	if len(rows) == 0 {
 		return
@@ -108,7 +104,7 @@ func printTable(headers []string, rows [][]string) {
 			}
 		}
 	}
-	// Shrink the widest column if the table overflows the terminal.
+	// shrink widest depending on terminal length
 	for {
 		total := len(indent)
 		for _, w := range widths {
@@ -176,7 +172,6 @@ func printTable(headers []string, rows [][]string) {
 	}
 }
 
-// fmtClock renders minutes-since-midnight in one consistent 12h style.
 func fmtClock(minutes int) string {
 	minutes %= 1440
 	if minutes < 0 {
@@ -196,7 +191,6 @@ func fmtClock(minutes int) string {
 	return fmt.Sprintf("%d:%02d %s", h, m, period)
 }
 
-// fmtDur renders a minute count compactly: 50m, 1h, 1h20m.
 func fmtDur(minutes int) string {
 	if minutes < 60 {
 		return fmt.Sprintf("%dm", minutes)

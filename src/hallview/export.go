@@ -10,7 +10,6 @@ import (
 	"time"
 )
 
-// exportsDir returns the CSV output folder, <repo>/exports.
 func exportsDir() string {
 	return filepath.Join(repoRoot(), "exports")
 }
@@ -78,7 +77,6 @@ func writeExportCSV(kind, label string, headers []string, rows [][]string) (stri
 	return path, nil
 }
 
-// offerExportRows prompts y/N and writes the full row set to exports/.
 func offerExportRows(kind, label string, headers []string, rows [][]string) {
 	if len(rows) == 0 {
 		return
@@ -101,7 +99,6 @@ func offerExportRows(kind, label string, headers []string, rows [][]string) {
 	okStyle.Printf("%sSaved %d row(s) to %s\n", indent, len(rows), path)
 }
 
-// entryRows flattens entries to exportable rows with stable headers.
 func entryRows(entries []entry) ([]string, [][]string) {
 	headers := []string{"building", "room", "start", "end", "day", "course", "section"}
 	rows := make([][]string, 0, len(entries))
@@ -119,7 +116,6 @@ func entryRows(entries []entry) ([]string, [][]string) {
 	return headers, rows
 }
 
-// freeHitsToRows flattens free-room day hits for export.
 func freeHitsToRows(days []string, dayHits map[string][]roomHit) ([]string, [][]string) {
 	headers := []string{"day", "room", "building", "free_until", "next_class"}
 	var rows [][]string
@@ -145,7 +141,6 @@ func freeHitsToRows(days []string, dayHits map[string][]roomHit) ([]string, [][]
 	return headers, rows
 }
 
-// busyRowsToRows flattens busy-window matches for export.
 func busyRowsToRows(days []string, dayRows map[string][][]string) ([]string, [][]string) {
 	headers := []string{"day", "time", "room", "course", "section"}
 	var rows [][]string

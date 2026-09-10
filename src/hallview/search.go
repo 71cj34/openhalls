@@ -6,10 +6,6 @@ import (
 	"strings"
 )
 
-// Shared fuzzy-pick: exact match wins, otherwise a numbered top-N
-// shortlist. Room and course search both read through here so the
-// "did you mean" UX stays identical.
-
 type scoredPick struct {
 	value string
 	label string
@@ -36,9 +32,7 @@ func scoreContains(value, input string) (bool, int) {
 	return true, score + max(0, 20-len(value))
 }
 
-// fuzzyPick resolves input against candidates. Labels carry extra
-// context (course titles); matching is on values only. Returns the
-// picked value, or "" when nothing matched.
+// DRY fuzzy match thing
 func fuzzyPick(noun string, candidates map[string]string, input string) (string, bool) {
 	input = strings.TrimSpace(input)
 	for v := range candidates {
@@ -97,8 +91,7 @@ func fuzzyPick(noun string, candidates map[string]string, input string) (string,
 	return fuzzyPick(noun, candidates, line)
 }
 
-// fuzzyPickBack re-prompts the top-level input after a back-out from
-// the pick list, so 0 there returns to the search prompt, not home.
+// backs up after the user goes back
 func fuzzyPickBack(noun string, candidates map[string]string) (string, bool) {
 	prompt := "Course code or keyword (empty = back): "
 	if noun == "room" {

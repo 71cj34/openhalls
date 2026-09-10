@@ -7,10 +7,6 @@ import (
 	"strings"
 )
 
-// Two modes, picked up front so prompts stay short:
-//   free — rooms with no class overlapping the window (default)
-//   busy — rooms holding class during the window
-
 type timeQuery struct {
 	days     []string
 	start    int
@@ -58,8 +54,6 @@ func handle2() {
 	}
 }
 
-// runTimeReport renders one time query and handles export plus the
-// optional fav prompt, shared by interactive search and favorites.
 func runTimeReport(q timeQuery, results []entry, sources []string, offerFav bool) {
 	if q.limit <= 0 {
 		q.limit = 30
@@ -93,8 +87,6 @@ func runTimeReport(q timeQuery, results []entry, sources []string, offerFav bool
 	}
 }
 
-// runTimeQuery executes a saved time favorite: fetch + report + export,
-// without re-prompting or offering to re-save.
 func runTimeQuery(q timeQuery) {
 	results, sources := querySchedule("day IN ('" + strings.Join(q.days, "','") + "')")
 	if len(results) == 0 {
@@ -176,9 +168,7 @@ const (
 	queryRetry
 )
 
-// printFreeReport lists rooms free for the whole window, grouped by
-// day, with "free until" so the reader can plan the next block.
-// Returns per-day hits for CSV export (full list, not the 30-row view).
+// MAIN
 func printFreeReport(q timeQuery, results []entry, sources []string) map[string][]roomHit {
 	index, buildingOf := roomDayIndex(results)
 	title := "Free rooms"
@@ -244,9 +234,7 @@ func printFreeReport(q timeQuery, results []entry, sources []string) map[string]
 	return dayHits
 }
 
-// printBusyReport lists classes overlapping the window, grouped by
-// day — the inverse question ("what's on right now / sit in on?").
-// Returns per-day display rows for CSV export (full list).
+// MAIN 2: ELECTRIC BOOGALOO
 func printBusyReport(q timeQuery, results []entry, sources []string) map[string][][]string {
 	title := "Occupied rooms"
 	if q.nameLike != "" {
@@ -315,9 +303,7 @@ var dayAliases = map[string]string{
 	"f": "6", "fri": "6", "friday": "6",
 }
 
-// parseDays accepts "Mon", "Mon,Wed", "Mon-Fri", "weekdays", "all".
-// It returns (nil, true) when input is empty, meaning "caller should
-// retry" — distinct from (days, false) which is a hard parse error.
+
 func parseDays(input string, fallback []string) ([]string, bool) {
 	s := strings.ToLower(strings.TrimSpace(input))
 	if s == "" {
@@ -371,7 +357,7 @@ func parseDays(input string, fallback []string) ([]string, bool) {
 	return out, true
 }
 
-// parseClock accepts "10:30am", "10:30 am", "13:30", "9", "9pm".
+// parse all the time formats
 func parseClock(input string) (int, error) {
 	s := strings.ToLower(strings.TrimSpace(input))
 	s = strings.ReplaceAll(s, " ", "")

@@ -114,9 +114,7 @@ func freeStyle(hasFree bool) *color.Color {
 	return freeLineDim
 }
 
-// summarizeFree merges occupied intervals and lists usable gaps.
-// Gaps under 15 minutes (passing periods) are folded into the count
-// instead of printed, which keeps busy days to one line.
+// gives the one line summary thing for timegaps
 func summarizeFree(classes []entry) freeSummary {
 	intervals := make([][2]int, 0, len(classes))
 	for _, e := range classes {
@@ -198,7 +196,7 @@ func handle5() {
 }
 func handle6() {
 	printH1("Settings")
-	wrnf("Not implemented yet.\n")
+	wrnf("Nothing here yet...\n")
 	pause()
 }
 func handle7() {

@@ -1,6 +1,7 @@
 *.json
 *.xml
 .env
+*.csv
 
 *.exe
 *.test

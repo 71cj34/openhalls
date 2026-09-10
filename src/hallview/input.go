@@ -10,11 +10,8 @@ import (
 // stdinReader is shared so buffered input is never split across prompts.
 var stdinReader = bufio.NewReader(os.Stdin)
 
-// readInputLine prints prompt and reads one cooked line.
-// The terminal handles arrows/edits; Enter submits.
-// Returns back=true only on EOF/error. Empty input is "" with
-// back=false — each caller decides whether empty means back
-// or a default.
+// cooked ahh lines
+// caller decides what empty input means!!! convention: empty = cancel/back
 func readInputLine(prompt string) (string, bool) {
 	fmt.Print(indent + prompt)
 	line, err := stdinReader.ReadString('\n')
