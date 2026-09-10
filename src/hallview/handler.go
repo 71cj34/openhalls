@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -27,19 +25,14 @@ func handle1() {
 		return
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
 	for {
 		fmt.Println()
-		input, back := readInputLine("Room name or keyword (Backspace = back): ")
-		if back {
+		input, back := readInputLine("Room name or keyword (empty = back): ")
+		if back || strings.TrimSpace(input) == "" {
 			return
 		}
-		if strings.TrimSpace(input) == "" {
-			continue
-		}
 
-		room, ok := fuzzyPick(reader, "room", keysAsCandidates(allRooms), input)
+		room, ok := fuzzyPick("room", keysAsCandidates(allRooms), input)
 		if !ok {
 			continue
 		}
@@ -186,7 +179,7 @@ func summarizeFree(classes []entry) freeSummary {
 func pause() {
 	fmt.Println()
 	printText("Press [Enter] to continue...")
-	bufio.NewReader(os.Stdin).ReadString('\n')
+	stdinReader.ReadString('\n')
 }
 
 func handle4() {

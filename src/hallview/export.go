@@ -85,7 +85,7 @@ func offerExportRows(kind, label string, headers []string, rows [][]string) {
 	}
 	fmt.Println()
 	answer, back := readInputLine(fmt.Sprintf("Export %d row(s) to CSV [y/N]? ", len(rows)))
-	if back {
+	if back || strings.TrimSpace(answer) == "" {
 		return
 	}
 	switch strings.ToLower(strings.TrimSpace(answer)) {

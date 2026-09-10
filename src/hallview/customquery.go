@@ -31,12 +31,9 @@ func runCustomQuery() {
 
 	for {
 		fmt.Println()
-		line, back := readInputLine("SQL [Backspace = back, help = info]: ")
-		if back {
+		line, back := readInputLine("SQL [empty = back, help = info]: ")
+		if back || strings.TrimSpace(line) == "" {
 			return
-		}
-		if strings.TrimSpace(line) == "" {
-			continue
 		}
 		switch strings.ToLower(line) {
 		case "help", "schema", "info", "example", "examples":
@@ -112,12 +109,12 @@ func pickCustomTargets(dbFiles []string) []string {
 		return dbFiles
 	}
 	fmt.Println()
-	printText("Query which database [empty = all terms, Backspace = menu]:")
+	printText("Query which database [empty = all terms, 0 = menu]:")
 	for i, f := range dbFiles {
 		printText(fmt.Sprintf("  %d. %s", i+1, filepath.Base(f)))
 	}
 	line, back := readInputLine("Choice: ")
-	if back {
+	if back || strings.TrimSpace(line) == "0" {
 		return nil
 	}
 	if strings.TrimSpace(line) == "" {

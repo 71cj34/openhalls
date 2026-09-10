@@ -142,7 +142,6 @@ func main() {
 					}
 				}
 				fmt.Println()
-				printText("Tip: Backspace on an empty line goes back.")
 
 				choice, back := readInputLine("Enter your choice (0-8): ")
 				if back {

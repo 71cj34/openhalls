@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -38,13 +36,11 @@ func handle2() {
 		return
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
 	for {
 		fmt.Println()
 		printText("Find rooms free (or busy) in a time window.")
-		printText("Backspace on day/start = back to menu.")
-		q, action := promptTimeQuery(reader)
+		printText("Empty day/start = back to menu.")
+		q, action := promptTimeQuery()
 		switch action {
 		case queryBack:
 			return
@@ -78,16 +74,12 @@ func handle2() {
 	}
 }
 
-func promptTimeQuery(reader *bufio.Reader) (timeQuery, queryAction) {
+func promptTimeQuery() (timeQuery, queryAction) {
 	q := timeQuery{limit: 30}
 
-	line, ok := promptLine(reader, "Day(s) [Mon-Fri, e.g. Mon,Wed or Mon-Fri, Backspace = back]: ")
-	if !ok {
+	line, back := readInputLine("Day(s) [Mon-Fri, e.g. Mon,Wed or Mon-Fri, empty = back]: ")
+	if back || strings.TrimSpace(line) == "" {
 		return q, queryBack
-	}
-	if strings.TrimSpace(line) == "" {
-		wrnf("Enter a day (Backspace to go back).\n")
-		return q, queryRetry
 	}
 	days, valid := parseDays(line, dayOrder)
 	if !valid {
@@ -96,13 +88,9 @@ func promptTimeQuery(reader *bufio.Reader) (timeQuery, queryAction) {
 	}
 	q.days = days
 
-	line, ok = promptLine(reader, "Start [e.g. 10:30am, 13:30, Backspace = back]: ")
-	if !ok {
+	line, back = readInputLine("Start [e.g. 10:30am, 13:30, empty = back]: ")
+	if back || strings.TrimSpace(line) == "" {
 		return q, queryBack
-	}
-	if strings.TrimSpace(line) == "" {
-		wrnf("Enter a start time (Backspace to go back).\n")
-		return q, queryRetry
 	}
 	start, err := parseClock(strings.TrimSpace(line))
 	if err != nil {
@@ -111,8 +99,8 @@ func promptTimeQuery(reader *bufio.Reader) (timeQuery, queryAction) {
 	}
 	q.start = start
 
-	line, ok = promptLine(reader, fmt.Sprintf("End [%s, empty = +1h]: ", fmtClock(start+60)))
-	if !ok {
+	line, back = readInputLine(fmt.Sprintf("End [%s, empty = +1h]: ", fmtClock(start+60)))
+	if back {
 		return q, queryBack
 	}
 	if strings.TrimSpace(line) == "" {
@@ -130,8 +118,8 @@ func promptTimeQuery(reader *bufio.Reader) (timeQuery, queryAction) {
 		return q, queryRetry
 	}
 
-	line, ok = promptLine(reader, "Mode [(f)ree / (b)usy, default f]: ")
-	if !ok {
+	line, back = readInputLine("Mode [(f)ree / (b)usy, default f]: ")
+	if back {
 		return q, queryBack
 	}
 	q.freeMode = true
@@ -139,8 +127,8 @@ func promptTimeQuery(reader *bufio.Reader) (timeQuery, queryAction) {
 		q.freeMode = false
 	}
 
-	line, ok = promptLine(reader, "Room filter [empty = all rooms]: ")
-	if !ok {
+	line, back = readInputLine("Room filter [empty = all rooms]: ")
+	if back {
 		return q, queryBack
 	}
 	q.nameLike = strings.TrimSpace(line)
@@ -155,15 +143,6 @@ const (
 	queryBack
 	queryRetry
 )
-
-func promptLine(reader *bufio.Reader, label string) (string, bool) {
-	_ = reader
-	line, back := readInputLine(label)
-	if back {
-		return "", false
-	}
-	return line, true
-}
 
 // printFreeReport lists rooms free for the whole window, grouped by
 // day, with "free until" so the reader can plan the next block.

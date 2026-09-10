@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 )
@@ -29,26 +27,21 @@ func handle3() {
 		candidates[c] = titles[c]
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-
 	for {
 		fmt.Println()
-		input, back := readInputLine("Course code or keyword (Backspace = back): ")
-		if back {
+		input, back := readInputLine("Course code or keyword (empty = back): ")
+		if back || strings.TrimSpace(input) == "" {
 			return
 		}
-		if strings.TrimSpace(input) == "" {
-			continue
-		}
 
-		course, ok := fuzzyPick(reader, "course", candidates, input)
+		course, ok := fuzzyPick("course", candidates, input)
 		if !ok {
 			continue
 		}
 
 		secFilter, back := readInputLine("Section filter [empty = all sections]: ")
 		if back {
-			continue
+			return
 		}
 
 		results, sources := queryCourse(course)

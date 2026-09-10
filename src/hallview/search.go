@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"sort"
 	"strings"
@@ -40,7 +39,7 @@ func scoreContains(value, input string) (bool, int) {
 // fuzzyPick resolves input against candidates. Labels carry extra
 // context (course titles); matching is on values only. Returns the
 // picked value, or "" when nothing matched.
-func fuzzyPick(reader *bufio.Reader, noun string, candidates map[string]string, input string) (string, bool) {
+func fuzzyPick(noun string, candidates map[string]string, input string) (string, bool) {
 	input = strings.TrimSpace(input)
 	for v := range candidates {
 		if strings.EqualFold(v, input) {
@@ -83,9 +82,9 @@ func fuzzyPick(reader *bufio.Reader, noun string, candidates map[string]string, 
 		rows = plain
 	}
 	printTable(headers, rows)
-	line, back := readInputLine(fmt.Sprintf("Pick 1-%d [1], or type to refine: ", showing))
-	if back {
-		return fuzzyPickBack(reader, noun, candidates)
+	line, back := readInputLine(fmt.Sprintf("Pick 1-%d [empty = 1, 0 = back, or type to refine]: ", showing))
+	if back || strings.TrimSpace(line) == "0" {
+		return fuzzyPickBack(noun, candidates)
 	}
 	line = strings.TrimSpace(line)
 	if line == "" {
@@ -95,25 +94,22 @@ func fuzzyPick(reader *bufio.Reader, noun string, candidates map[string]string, 
 	if _, err := fmt.Sscanf(line, "%d", &n); err == nil && n >= 1 && n <= showing {
 		return scored[n-1].value, true
 	}
-	return fuzzyPick(reader, noun, candidates, line)
+	return fuzzyPick(noun, candidates, line)
 }
 
 // fuzzyPickBack re-prompts the top-level input after a back-out from
-// the pick list, so Backspace never drops straight to the home menu.
-func fuzzyPickBack(reader *bufio.Reader, noun string, candidates map[string]string) (string, bool) {
-	prompt := "Course code or keyword (Backspace = back): "
+// the pick list, so 0 there returns to the search prompt, not home.
+func fuzzyPickBack(noun string, candidates map[string]string) (string, bool) {
+	prompt := "Course code or keyword (empty = back): "
 	if noun == "room" {
-		prompt = "Room name or keyword (Backspace = back): "
+		prompt = "Room name or keyword (empty = back): "
 	}
 	fmt.Println()
 	input, back := readInputLine(prompt)
-	if back {
+	if back || strings.TrimSpace(input) == "" {
 		return "", false
 	}
-	if strings.TrimSpace(input) == "" {
-		return fuzzyPickBack(reader, noun, candidates)
-	}
-	return fuzzyPick(reader, noun, candidates, input)
+	return fuzzyPick(noun, candidates, input)
 }
 
 func keysAsCandidates(keys map[string]bool) map[string]string {
