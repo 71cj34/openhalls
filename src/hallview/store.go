@@ -35,6 +35,32 @@ type entry struct {
 // Shared schedule store. Both Search by Room and Search by Time read
 // through here so SQL, dedupe, and sort order stay identical.
 
+// Active database: exactly one term DB is searched at a time.
+// It is chosen once at startup (see dbselect.go) and can be
+// switched from the home menu. Empty means "none selected yet".
+var activeDB string
+
+func setActiveDB(path string) {
+	activeDB = path
+}
+
+// activeDBFile returns the single DB to search. If a selection was
+// made, it wins. With exactly one DB on disk, that DB is implied so
+// single-term users are never prompted. Otherwise "" (must select).
+func activeDBFile() string {
+	if activeDB != "" {
+		if st, err := os.Stat(activeDB); err == nil && !st.IsDir() {
+			return activeDB
+		}
+		activeDB = ""
+	}
+	files := listDBFiles()
+	if len(files) == 1 {
+		activeDB = files[0]
+		return activeDB
+	}
+	return ""
+}
 func listDBFiles() []string {
 	// DBs always live at <repo>/src/hallview/data/db, anchored by
 	// repoRoot() so the binary works from any CWD.
