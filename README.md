@@ -34,6 +34,8 @@ python parse.py --semester 3202630 --no-fetch
 python parse.py --semester 3202630 --cookie-file cookie.txt --course-file sample_data.json --limit 5 --force
 ```
 
+These commands will take a hot second to run, especially `parse.py` (there are ~2000 courses to fetch per semester). If you're really impatient, you can go into the code and modify the `delay` value to be lower, at the risk of getting rate-limited or temporarily restricted from the site.
+
 ### Getting a cookie
 
 Getting class data only works if you are logged in to MyTimetable. Since this script isn't a browser, you need to supply your browser cookie (basically your browser's authentication key to prove that you're you.)
