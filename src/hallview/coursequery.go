@@ -9,10 +9,15 @@ import (
 func handle3() {
 	printH1("Search by Course")
 
-	if len(listDBFiles()) == 0 {
-		wrnf("No databases found. Rebuild databases first (menu option 0).\n")
-		pause()
-		return
+	if activeDBFile() == "" {
+		if !hasDatabases() {
+			wrnf("No databases found. Rebuild databases first (menu option 0).\n")
+			pause()
+			return
+		}
+		if !promptSelectDatabase() {
+			return
+		}
 	}
 
 	courses := collectCourses()

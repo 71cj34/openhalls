@@ -11,14 +11,18 @@ import (
 func handle1() {
 	printH1("Search by Room")
 
-	dbFiles := listDBFiles()
-	if len(dbFiles) == 0 {
-		wrnf("No databases found. Rebuild databases first (menu option 0).\n")
-		pause()
-		return
+	if activeDBFile() == "" {
+		if !hasDatabases() {
+			wrnf("No databases found. Rebuild databases first (menu option 0).\n")
+			pause()
+			return
+		}
+		if !promptSelectDatabase() {
+			return
+		}
 	}
 
-	allRooms := collectRooms(dbFiles)
+	allRooms := collectRooms()
 	if len(allRooms) == 0 {
 		wrnf("Databases contain no rooms.\n")
 		pause()

@@ -207,7 +207,18 @@ func offerSaveFavorite(proto Favorite) {
 }
 
 // runFavorite jumps to the equivalent search screen with saved params.
+// Searches always run against the active term DB.
 func runFavorite(fav Favorite) {
+	if activeDBFile() == "" {
+		if !hasDatabases() {
+			wrnf("No databases found. Rebuild databases first (menu option 0).\n")
+			pause()
+			return
+		}
+		if !promptSelectDatabase() {
+			return
+		}
+	}
 	switch fav.Kind {
 	case "room":
 		printH1("Search by Room")
@@ -229,41 +240,11 @@ func runFavorite(fav Favorite) {
 		})
 	case "sql":
 		printH1("Custom SQL Query")
-		runSQLSearch(fav.SQL, resolveFavTargets(fav.Targets))
+		runSQLSearch(fav.SQL)
 	default:
 		wrnf("Unknown favorite kind %q.\n", fav.Kind)
 		pause()
 	}
-}
-
-func resolveFavTargets(bases []string) []string {
-	all := listDBFiles()
-	if len(bases) == 0 {
-		return all
-	}
-	want := make(map[string]bool, len(bases))
-	for _, b := range bases {
-		want[strings.ToLower(filepath.Base(b))] = true
-		want[strings.ToLower(b)] = true
-	}
-	var out []string
-	for _, f := range all {
-		if want[strings.ToLower(filepath.Base(f))] || want[strings.ToLower(f)] {
-			out = append(out, f)
-		}
-	}
-	if len(out) == 0 {
-		return all
-	}
-	return out
-}
-
-func favTargetBases(targets []string) []string {
-	bases := make([]string, 0, len(targets))
-	for _, t := range targets {
-		bases = append(bases, filepath.Base(t))
-	}
-	return bases
 }
 
 // manageFavorites lists, renames, and deletes favorites.

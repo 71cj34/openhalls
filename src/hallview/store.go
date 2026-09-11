@@ -107,48 +107,49 @@ func sortEntries(es []entry) {
 	})
 }
 
-// querySchedule scans every term DB with the same WHERE clause,
-// dedupes identical rows, and returns per-term source names that hit.
+// querySchedule runs WHERE against the single active term DB,
+// dedupes identical rows, and returns the source DB base name.
 func querySchedule(where string, args ...any) ([]entry, []string) {
-	dbFiles := listDBFiles()
+	dbFile := activeDBFile()
+	if dbFile == "" {
+		return nil, nil
+	}
 	seen := make(map[string]bool)
 	var out []entry
 	var sources []string
-	for _, dbFile := range dbFiles {
-		db, err := sql.Open("sqlite", dbFile)
-		if err != nil {
-			errf("Failed to open %s: %v\n", dbFile, err)
-			continue
-		}
-		q := "SELECT building, room, start, end, day, course, section FROM schedule"
-		if strings.TrimSpace(where) != "" {
-			q += " WHERE " + where
-		}
-		rows, err := db.Query(q, args...)
-		if err != nil {
-			errf("Query failed in %s: %v\n", dbFile, err)
-			db.Close()
-			continue
-		}
-		count := 0
-		for rows.Next() {
-			var e entry
-			if err := rows.Scan(&e.building, &e.room, &e.start, &e.end, &e.day, &e.course, &e.section); err != nil {
-				continue
-			}
-			count++
-			key := entryKey(e)
-			if !seen[key] {
-				seen[key] = true
-				out = append(out, e)
-			}
-		}
-		rows.Close()
+	db, err := sql.Open("sqlite", dbFile)
+	if err != nil {
+		errf("Failed to open %s: %v\n", dbFile, err)
+		return nil, nil
+	}
+	q := "SELECT building, room, start, end, day, course, section FROM schedule"
+	if strings.TrimSpace(where) != "" {
+		q += " WHERE " + where
+	}
+	rows, err := db.Query(q, args...)
+	if err != nil {
+		errf("Query failed in %s: %v\n", dbFile, err)
 		db.Close()
-		logf("%s -> %d rows\n", dbFile, count)
-		if count > 0 {
-			sources = append(sources, filepath.Base(dbFile))
+		return nil, nil
+	}
+	count := 0
+	for rows.Next() {
+		var e entry
+		if err := rows.Scan(&e.building, &e.room, &e.start, &e.end, &e.day, &e.course, &e.section); err != nil {
+			continue
 		}
+		count++
+		key := entryKey(e)
+		if !seen[key] {
+			seen[key] = true
+			out = append(out, e)
+		}
+	}
+	rows.Close()
+	db.Close()
+	logf("%s -> %d rows\n", dbFile, count)
+	if count > 0 {
+		sources = append(sources, filepath.Base(dbFile))
 	}
 	sortEntries(out)
 	return out, sources
@@ -162,33 +163,34 @@ func queryCourse(course string) ([]entry, []string) {
 	return querySchedule("course = ? ORDER BY day, start", course)
 }
 
-// collectDistinct scans each term DB for one column and unions the values.
+// collectDistinct reads one column from the active term DB.
 func collectDistinct(column string) map[string]bool {
 	out := make(map[string]bool)
-	for _, dbFile := range listDBFiles() {
-		db, err := sql.Open("sqlite", dbFile)
-		if err != nil {
-			continue
-		}
-		rows, err := db.Query("SELECT DISTINCT " + column + " FROM schedule")
-		if err != nil {
-			db.Close()
-			continue
-		}
-		for rows.Next() {
-			var v string
-			if rows.Scan(&v) == nil && v != "" {
-				out[v] = true
-			}
-		}
-		rows.Close()
-		db.Close()
+	dbFile := activeDBFile()
+	if dbFile == "" {
+		return out
 	}
+	db, err := sql.Open("sqlite", dbFile)
+	if err != nil {
+		return out
+	}
+	rows, err := db.Query("SELECT DISTINCT " + column + " FROM schedule")
+	if err != nil {
+		db.Close()
+		return out
+	}
+	for rows.Next() {
+		var v string
+		if rows.Scan(&v) == nil && v != "" {
+			out[v] = true
+		}
+	}
+	rows.Close()
+	db.Close()
 	return out
 }
 
-func collectRooms(dbFiles []string) map[string]bool {
-	_ = dbFiles // legacy param; all term DBs are always scanned
+func collectRooms() map[string]bool {
 	return collectDistinct("room")
 }
 
@@ -199,10 +201,22 @@ func collectCourses() map[string]bool {
 // courseTitles maps schedule codes ("ABLD-3CD3") to catalog titles
 // ("Topics in the Black Caribbean..."). Catalog files use spaces
 // ("ABLD 3CD3"), so both directions are normalized to dash form.
+// Only the active term's catalog is read; all catalogs are the
+// fallback when the active term has no catalog file.
 func courseTitles() map[string]string {
 	titles := make(map[string]string)
-	pattern := filepath.Join(coursesDir(), "*.json")
-	files, _ := filepath.Glob(pattern)
+	var files []string
+	if cur := activeDBFile(); cur != "" {
+		base := strings.TrimSuffix(filepath.Base(cur), filepath.Ext(cur))
+		cand := filepath.Join(coursesDir(), base+".json")
+		if st, err := os.Stat(cand); err == nil && !st.IsDir() {
+			files = []string{cand}
+		}
+	}
+	if len(files) == 0 {
+		pattern := filepath.Join(coursesDir(), "*.json")
+		files, _ = filepath.Glob(pattern)
+	}
 	for _, f := range files {
 		data, err := os.ReadFile(f)
 		if err != nil {
