@@ -32,23 +32,16 @@ type entry struct {
 	section  string
 }
 
-// Shared schedule store. Both Search by Room and Search by Time read
-// through here so SQL, dedupe, and sort order stay identical.
-
-// Active database: exactly one term DB is searched at a time.
-// It is chosen once at startup (see dbselect.go) and can be
-// switched from the home menu. Empty means "none selected yet".
+// SEE THE ACTIVEDB CODE...
 var activeDB string
 
 func setActiveDB(path string) {
 	activeDB = path
 }
 
-// activeDBFile returns the single DB to search. If a selection was
-// made, it wins. With exactly one DB on disk, that DB is implied so
-// single-term users are never prompted. Otherwise "" (must select).
 func activeDBFile() string {
 	if activeDB != "" {
+		// the implication
 		if st, err := os.Stat(activeDB); err == nil && !st.IsDir() {
 			return activeDB
 		}
@@ -62,8 +55,7 @@ func activeDBFile() string {
 	return ""
 }
 func listDBFiles() []string {
-	// DBs always live at <repo>/src/hallview/data/db, anchored by
-	// repoRoot() so the binary works from any CWD.
+	// !make sure reporoot was initialized before it does this
 	if files, _ := filepath.Glob(filepath.Join(dbDir(), "*.db")); len(files) > 0 {
 		return files
 	}
@@ -107,8 +99,7 @@ func sortEntries(es []entry) {
 	})
 }
 
-// querySchedule runs WHERE against the single active term DB,
-// dedupes identical rows, and returns the source DB base name.
+// todo: dedupe
 func querySchedule(where string, args ...any) ([]entry, []string) {
 	dbFile := activeDBFile()
 	if dbFile == "" {
@@ -163,7 +154,6 @@ func queryCourse(course string) ([]entry, []string) {
 	return querySchedule("course = ? ORDER BY day, start", course)
 }
 
-// collectDistinct reads one column from the active term DB.
 func collectDistinct(column string) map[string]bool {
 	out := make(map[string]bool)
 	dbFile := activeDBFile()
@@ -198,11 +188,8 @@ func collectCourses() map[string]bool {
 	return collectDistinct("course")
 }
 
-// courseTitles maps schedule codes ("ABLD-3CD3") to catalog titles
-// ("Topics in the Black Caribbean..."). Catalog files use spaces
-// ("ABLD 3CD3"), so both directions are normalized to dash form.
-// Only the active term's catalog is read; all catalogs are the
-// fallback when the active term has no catalog file.
+// todo: normalize spaces
+// todo: collapse searching all catalogs to a settings option
 func courseTitles() map[string]string {
 	titles := make(map[string]string)
 	var files []string
@@ -239,9 +226,6 @@ func courseTitles() map[string]string {
 	return titles
 }
 
-// roomDayIndex groups entries as room -> day -> classes, plus a
-// room -> building lookup. Time search works off this index so each
-// room's overlap check is independent of DB layout.
 func roomDayIndex(entries []entry) (map[string]map[string][]entry, map[string]string) {
 	index := make(map[string]map[string][]entry)
 	buildingOf := make(map[string]string)
@@ -257,7 +241,7 @@ func roomDayIndex(entries []entry) (map[string]map[string][]entry, map[string]st
 	return index, buildingOf
 }
 
-// overlaps reports whether half-open [aStart,aEnd) hits [bStart,bEnd).
+// overlaps reports wether half-open [aStart,aEnd) hits [bStart,bEnd)
 func overlaps(aStart, aEnd, bStart, bEnd int) bool {
 	return aStart < bEnd && bStart < aEnd
 }
@@ -271,8 +255,7 @@ func roomFreeOn(classes []entry, start, end int) bool {
 	return true
 }
 
-// freeUntil returns the start of the next class at/after windowEnd,
-// or 1440 when the room is free for the rest of the day.
+// todo: make the no more classes til end of day case not ugly
 func freeUntil(classes []entry, windowEnd int) int {
 	next := 1440
 	for _, e := range classes {
@@ -283,7 +266,6 @@ func freeUntil(classes []entry, windowEnd int) int {
 	return next
 }
 
-// nextAfter returns the earliest class starting at/after windowEnd.
 func nextAfter(classes []entry, windowEnd int) *entry {
 	var best *entry
 	for i := range classes {
