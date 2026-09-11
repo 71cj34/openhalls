@@ -105,14 +105,19 @@ func main() {
 			time.Sleep(3 * time.Second)
 			fmt.Println()
 
+			selectDatabaseAtStartup()
+
 			for {
 				printH1("home")
 				printH2("Detected Files", color.New(color.FgGreen))
 				printLoaded()
 				fmt.Println()
+				printH2("Active Term")
+				printActiveDB()
+				fmt.Println()
 				printH2("Favorites", color.New(color.FgRed))
 				printFavs()
-				hasDB := hasDatabases()
+				hasDB := activeDBFile() != ""
 
 				fmt.Println()
 				printH2("What would you like to do?")
@@ -133,6 +138,7 @@ func main() {
 					{"6", "Settings", true},
 					{"7", "About", true},
 					{"8", "Exit", true},
+					{"9", "Switch Term Database", len(listDBFiles()) > 1},
 				}
 				for _, m := range menu {
 					if m.enabled {
@@ -143,7 +149,7 @@ func main() {
 				}
 				fmt.Println()
 
-				choice, back := readInputLine("Enter your choice (0-8, a-z for favorites): ")
+				choice, back := readInputLine("Enter your choice (0-9, a-z for favorites): ")
 				if back {
 					fmt.Println("Exiting...")
 					return
@@ -170,6 +176,10 @@ func main() {
 				switch choice {
 				case "0":
 					createSchedDB()
+					if activeDBFile() == "" && len(listDBFiles()) > 1 {
+						printH1("Select term database")
+						promptSelectDatabase()
+					}
 				case "1":
 					handle1()
 				case "2":
@@ -187,8 +197,15 @@ func main() {
 				case "8":
 					fmt.Println("Exiting...")
 					return
+				case "9":
+					if len(listDBFiles()) > 1 {
+						printH1("Switch term database")
+						promptSelectDatabase()
+					} else {
+						wrnf("Only one database available.\n")
+					}
 				default:
-					wrnf("Invalid choice %q, please enter 0-8 or a favorite hotkey.\n", choice)
+					wrnf("Invalid choice %q, please enter 0-9 or a favorite hotkey.\n", choice)
 				}
 			}
 		},
