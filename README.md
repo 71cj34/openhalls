@@ -4,6 +4,8 @@ OpenHalls is a project that provides a way to automatically scrape the MyTimetab
 
 This tool is very helpful if you want to sit in on a course's lectures, find out what times a room is occupied, learn more about a course you want to take, plan sections, find a calm area for a club meeting, get analytics on room/time use, and more!
 
+<img src="cli.png"></img>
+
 # Usage
 
 ## Scraping data (Python)
