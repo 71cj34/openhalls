@@ -10,6 +10,8 @@ This tool is very helpful if you want to sit in on a course's lectures, find out
 
 ## Scraping data (Python)
 
+Get the source code. You can do this through `git clone https://github.com/71cj34/openhalls` or by downloading the source code .zip in the releases section. Make the source code folder your CWD.
+
 Requires Python 3.10+.
 
 Run this: 
@@ -55,6 +57,9 @@ I don't know how long it takes, but the cookie will probably expire. If the scri
 This repo contains a command-line interface to view the data using SQLite for super fast browsing. To use it, download a .exe from the releases tab on Github, or compile it yourself with the `build.bat` file in \src\hallview if you have Go installed.
 
 Once you have the .exe, place it somewhere in the folder structure between the root folder (the folder containing the .xml, .json, python files, etc) and the Go source files. Run it. The program will give you instructions, troubleshooting, etc from there.
+
+Settings:
+- **Hide Lab Rooms**: Rooms that are used for labs are also included, but since they're usually locked or are really uncomfortable to be in for anything that isn't the lab, this option allows you to automatically hide any rooms that have lab sections in them.
 
 ### Why is all this so complicated?
 
