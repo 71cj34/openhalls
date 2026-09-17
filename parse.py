@@ -1,18 +1,3 @@
-"""Steps 2-4: fetch class XML, parse to per-course JSON, build room schedules.
-
-Usage:
-    pip install requests
-    python parse.py --semester 3202630 --cookie "JSESSIONID=..."
-
-Full pipeline (default runs all three stages):
-    python parse.py --semester 3202630 --cookie-file cookie.txt
-
-Run only local stages (no cookie needed):
-    python parse.py --semester 3202630 --no-fetch
-
-Quick test with a few courses:
-    python parse.py --semester 3202630 --cookie-file cookie.txt --limit 5 --force
-"""
 import argparse
 import json
 import os
@@ -40,7 +25,6 @@ def ee():
 
 
 def _cookie_from_dotenv(dotenv_path: str = ".env") -> str:
-    """Read COOKIE_ENV_VAR from a .env file without extra dependencies."""
     p = Path(dotenv_path)
     if not p.is_file():
         return ""
@@ -55,7 +39,6 @@ def _cookie_from_dotenv(dotenv_path: str = ".env") -> str:
 
 
 def resolve_cookie(cli_cookie: str = "", cookie_file: str = "") -> str:
-    """Return the cookie from --cookie, --cookie-file, env, or .env (first hit wins)."""
     if cli_cookie:
         return cli_cookie.strip()
     if cookie_file:
@@ -165,7 +148,6 @@ def get_course_data(
     skip_existing: bool = True,
     delay: float = 0.25,
 ) -> Tuple[List[Path], List[str]]:
-    """Fetch one XML file per course. Returns (saved_paths, failed_codes)."""
     if not cookie:
         raise SystemExit(
             "Missing browser cookie, cannot call class-data.\n" + _cookie_help()
