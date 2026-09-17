@@ -30,6 +30,7 @@ type entry struct {
 	day      string
 	course   string
 	section  string
+	isLab    bool
 }
 
 // Shared schedule store. Both Search by Room and Search by Time read
@@ -71,8 +72,8 @@ func listDBFiles() []string {
 }
 
 func entryKey(e entry) string {
-	return fmt.Sprintf("%s|%s|%d|%d|%s|%s|%s",
-		e.building, e.room, e.start, e.end, e.day, e.course, e.section)
+	return fmt.Sprintf("%s|%s|%d|%d|%s|%s|%s|%t",
+		e.building, e.room, e.start, e.end, e.day, e.course, e.section, e.isLab)
 }
 
 func dayRank(day string) int {
@@ -114,28 +115,48 @@ func querySchedule(where string, args ...any) ([]entry, []string) {
 	if dbFile == "" {
 		return nil, nil
 	}
-	seen := make(map[string]bool)
-	var out []entry
-	var sources []string
 	db, err := sql.Open("sqlite", dbFile)
 	if err != nil {
 		errf("Failed to open %s: %v\n", dbFile, err)
 		return nil, nil
 	}
-	q := "SELECT building, room, start, end, day, course, section FROM schedule"
+	defer db.Close()
+
+	// todo: deprecate section prefix scanner (will break stuff)
+	q := "SELECT building, room, start, end, day, course, section, is_lab FROM schedule"
 	if strings.TrimSpace(where) != "" {
 		q += " WHERE " + where
 	}
+	withLab := true
 	rows, err := db.Query(q, args...)
 	if err != nil {
-		errf("Query failed in %s: %v\n", dbFile, err)
-		db.Close()
-		return nil, nil
+		q = "SELECT building, room, start, end, day, course, section FROM schedule"
+		if strings.TrimSpace(where) != "" {
+			q += " WHERE " + where
+		}
+		rows, err = db.Query(q, args...)
+		if err != nil {
+			errf("Query failed in %s: %v\n", dbFile, err)
+			return nil, nil
+		}
+		withLab = false
 	}
+	defer rows.Close()
+
+	seen := make(map[string]bool)
+	var out []entry
 	count := 0
 	for rows.Next() {
 		var e entry
-		if err := rows.Scan(&e.building, &e.room, &e.start, &e.end, &e.day, &e.course, &e.section); err != nil {
+		var isLab int
+		if withLab {
+			err = rows.Scan(&e.building, &e.room, &e.start, &e.end, &e.day, &e.course, &e.section, &isLab)
+			e.isLab = isLab != 0
+		} else {
+			err = rows.Scan(&e.building, &e.room, &e.start, &e.end, &e.day, &e.course, &e.section)
+			e.isLab = isLabSection(e.section)
+		}
+		if err != nil {
 			continue
 		}
 		count++
@@ -145,9 +166,8 @@ func querySchedule(where string, args ...any) ([]entry, []string) {
 			out = append(out, e)
 		}
 	}
-	rows.Close()
-	db.Close()
 	logf("%s -> %d rows\n", dbFile, count)
+	var sources []string
 	if count > 0 {
 		sources = append(sources, filepath.Base(dbFile))
 	}
@@ -194,15 +214,39 @@ func collectRooms() map[string]bool {
 	return collectDistinct("room")
 }
 
+// sends off lab rooms
+func labRoomSet() map[string]bool {
+	out := make(map[string]bool)
+	dbFile := activeDBFile()
+	if dbFile == "" {
+		return out
+	}
+	db, err := sql.Open("sqlite", dbFile)
+	if err != nil {
+		return out
+	}
+	defer db.Close()
+	rows, err := db.Query("SELECT DISTINCT room FROM schedule WHERE is_lab = 1")
+	if err != nil {
+		rows, err = db.Query("SELECT DISTINCT room FROM schedule WHERE upper(section) LIKE 'LAB%'")
+		if err != nil {
+			return out
+		}
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var r string
+		if rows.Scan(&r) == nil && r != "" {
+			out[r] = true
+		}
+	}
+	return out
+}
+
 func collectCourses() map[string]bool {
 	return collectDistinct("course")
 }
 
-// courseTitles maps schedule codes ("ABLD-3CD3") to catalog titles
-// ("Topics in the Black Caribbean..."). Catalog files use spaces
-// ("ABLD 3CD3"), so both directions are normalized to dash form.
-// Only the active term's catalog is read; all catalogs are the
-// fallback when the active term has no catalog file.
 func courseTitles() map[string]string {
 	titles := make(map[string]string)
 	var files []string
@@ -239,9 +283,6 @@ func courseTitles() map[string]string {
 	return titles
 }
 
-// roomDayIndex groups entries as room -> day -> classes, plus a
-// room -> building lookup. Time search works off this index so each
-// room's overlap check is independent of DB layout.
 func roomDayIndex(entries []entry) (map[string]map[string][]entry, map[string]string) {
 	index := make(map[string]map[string][]entry)
 	buildingOf := make(map[string]string)
@@ -271,8 +312,6 @@ func roomFreeOn(classes []entry, start, end int) bool {
 	return true
 }
 
-// freeUntil returns the start of the next class at/after windowEnd,
-// or 1440 when the room is free for the rest of the day.
 func freeUntil(classes []entry, windowEnd int) int {
 	next := 1440
 	for _, e := range classes {
@@ -283,7 +322,6 @@ func freeUntil(classes []entry, windowEnd int) int {
 	return next
 }
 
-// nextAfter returns the earliest class starting at/after windowEnd.
 func nextAfter(classes []entry, windowEnd int) *entry {
 	var best *entry
 	for i := range classes {
