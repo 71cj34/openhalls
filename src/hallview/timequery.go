@@ -21,6 +21,7 @@ type roomHit struct {
 	building string
 	until    int
 	next     *entry
+	isLab    bool
 }
 
 func handle2() {
@@ -63,8 +64,9 @@ func runTimeReport(q timeQuery, results []entry, sources []string, offerFav bool
 	if q.limit <= 0 {
 		q.limit = 30
 	}
+	labs := labRoomSet()
 	if q.freeMode {
-		dayHits := printFreeReport(q, results, sources)
+		dayHits := printFreeReport(q, results, sources, labs)
 		headers, rows := freeHitsToRows(q.days, dayHits)
 		label := "free-" + fmtClock(q.start) + "-" + fmtClock(q.end)
 		if q.nameLike != "" {
@@ -72,7 +74,7 @@ func runTimeReport(q timeQuery, results []entry, sources []string, offerFav bool
 		}
 		offerExportRows("time", label, headers, rows)
 	} else {
-		dayRows := printBusyReport(q, results, sources)
+		dayRows := printBusyReport(q, results, sources, labs)
 		headers, rows := busyRowsToRows(q.days, dayRows)
 		label := "busy-" + fmtClock(q.start) + "-" + fmtClock(q.end)
 		if q.nameLike != "" {
@@ -174,7 +176,7 @@ const (
 )
 
 // MAIN
-func printFreeReport(q timeQuery, results []entry, sources []string) map[string][]roomHit {
+func printFreeReport(q timeQuery, results []entry, sources []string, labs map[string]bool) map[string][]roomHit {
 	index, buildingOf := roomDayIndex(results)
 	title := "Free rooms"
 	if q.nameLike != "" {
@@ -200,6 +202,7 @@ func printFreeReport(q timeQuery, results []entry, sources []string) map[string]
 					building: buildingOf[room],
 					until:    freeUntil(byDay[day], q.end),
 					next:     nextAfter(byDay[day], q.end),
+					isLab:    labs[room],
 				})
 			}
 		}
@@ -225,9 +228,9 @@ func printFreeReport(q timeQuery, results []entry, sources []string) map[string]
 			if h.next != nil {
 				next = fmt.Sprintf("%s (%s)", fmtClock(h.next.start), h.next.course)
 			}
-			rows = append(rows, []string{h.room, h.building, "until " + fmtClock(h.until), next})
+			rows = append(rows, []string{h.room, h.building, "until " + fmtClock(h.until), next, labMark(h.isLab)})
 		}
-		printTable([]string{"Room", "Building", "Free", "Next class"}, rows)
+		printTable([]string{"Room", "Building", "Free", "Next class", "Lab"}, rows)
 		if len(hits) > q.limit {
 			dimStyle.Printf("%s… and %d more (refine with a room filter)\n", indent, len(hits)-q.limit)
 		}
@@ -235,12 +238,13 @@ func printFreeReport(q timeQuery, results []entry, sources []string) map[string]
 			dayHits[day] = hits
 		}
 	}
+	labLegend(labCount(dayHits))
 	fmt.Println()
 	return dayHits
 }
 
 // MAIN 2: ELECTRIC BOOGALOO
-func printBusyReport(q timeQuery, results []entry, sources []string) map[string][][]string {
+func printBusyReport(q timeQuery, results []entry, sources []string, labs map[string]bool) map[string][][]string {
 	title := "Occupied rooms"
 	if q.nameLike != "" {
 		title += fmt.Sprintf(" matching %q", q.nameLike)
@@ -270,6 +274,7 @@ func printBusyReport(q timeQuery, results []entry, sources []string) map[string]
 				e.room,
 				e.course,
 				e.section,
+				labMark(labs[e.room]),
 			})
 		}
 		sort.Slice(rows, func(i, j int) bool {
@@ -294,10 +299,63 @@ func printBusyReport(q timeQuery, results []entry, sources []string) map[string]
 			dimStyle.Printf("%sShowing %d of %d (refine with a room filter)\n", indent, q.limit, len(rows))
 			rows = rows[:q.limit]
 		}
-		printTable([]string{"Time", "Room", "Course", "Section"}, rows)
+		printTable([]string{"Time", "Room", "Course", "Section", "Lab"}, rows)
 	}
+	labLegend(labCountBusy(dayRows))
 	fmt.Println()
 	return dayRows
+}
+
+// todo: deprecate this
+func labMark(isLab bool) string {
+	if isLab {
+		return "yes"
+	}
+	return ""
+}
+
+func labCount(dayHits map[string][]roomHit) int {
+	seen := make(map[string]bool)
+	n := 0
+	for _, hits := range dayHits {
+		for _, h := range hits {
+			if h.isLab && !seen[h.room] {
+				seen[h.room] = true
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// tally distinct lab rooms from busy-report rows where last cell = "yes".
+func labCountBusy(dayRows map[string][][]string) int {
+	seen := make(map[string]bool)
+	n := 0
+	for _, rows := range dayRows {
+		for _, r := range rows {
+			if len(r) < 5 {
+				continue
+			}
+			room := ""
+			if len(r) > 1 {
+				room = r[1]
+			}
+			if r[4] == "yes" && room != "" && !seen[room] {
+				seen[room] = true
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// labLegend explains the Lab column when lab rooms show up.
+func labLegend(n int) {
+	if n == 0 {
+		return
+	}
+	dimStyle.Printf("%s%d lab room(s) shown (locked / unsuitable for non-lab use) marked yes.\n", indent, n)
 }
 
 var dayAliases = map[string]string{
