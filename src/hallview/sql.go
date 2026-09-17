@@ -10,6 +10,11 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// lablike handler
+func isLabSection(section string) bool {
+	return strings.HasPrefix(strings.TrimSpace(strings.ToUpper(section)), "LAB")
+}
+
 func createSchedDB() {
 	scheduleDir := scheduleDir()
 	dbDir := dbDir()
@@ -65,7 +70,8 @@ func createSchedDB() {
 			end INTEGER,
 			day TEXT,
 			course TEXT,
-			section TEXT
+			section TEXT,
+			is_lab INTEGER
 		)`)
 		if err != nil {
 			errf("Error creating table in %s: %v\n", dbPath, err)
@@ -81,7 +87,7 @@ func createSchedDB() {
 			return nil
 		}
 
-		stmt, err := tx.Prepare("INSERT INTO schedule (building, room, start, end, day, course, section) VALUES (?, ?, ?, ?, ?, ?, ?)")
+		stmt, err := tx.Prepare("INSERT INTO schedule (building, room, start, end, day, course, section, is_lab) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
 		if err != nil {
 			errf("Error preparing statement for %s: %v\n", dbPath, err)
 			return nil
@@ -90,7 +96,7 @@ func createSchedDB() {
 		for b, rs := range raw {
 			for r, entries := range rs {
 				for _, entry := range entries {
-					_, err := stmt.Exec(b, r, int(entry.Start), int(entry.End), entry.Day, entry.Course, entry.Display)
+					_, err := stmt.Exec(b, r, int(entry.Start), int(entry.End), entry.Day, entry.Course, entry.Display, isLabSection(entry.Display))
 					if err != nil {
 						errf("Error inserting into %s: %v\n", dbPath, err)
 					}

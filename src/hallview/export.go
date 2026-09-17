@@ -117,7 +117,7 @@ func entryRows(entries []entry) ([]string, [][]string) {
 }
 
 func freeHitsToRows(days []string, dayHits map[string][]roomHit) ([]string, [][]string) {
-	headers := []string{"day", "room", "building", "free_until", "next_class"}
+	headers := []string{"day", "room", "building", "free_until", "next_class", "lab"}
 	var rows [][]string
 	for _, day := range days {
 		label := dayNames[day]
@@ -129,7 +129,7 @@ func freeHitsToRows(days []string, dayHits map[string][]roomHit) ([]string, [][]
 			if h.next != nil {
 				next = fmt.Sprintf("%s (%s)", fmtClock(h.next.start), h.next.course)
 			}
-			rows = append(rows, []string{label, h.room, h.building, fmtClock(h.until), next})
+			rows = append(rows, []string{label, h.room, h.building, fmtClock(h.until), next, labMark(h.isLab)})
 		}
 	}
 	sort.Slice(rows, func(i, j int) bool {
@@ -142,7 +142,7 @@ func freeHitsToRows(days []string, dayHits map[string][]roomHit) ([]string, [][]
 }
 
 func busyRowsToRows(days []string, dayRows map[string][][]string) ([]string, [][]string) {
-	headers := []string{"day", "time", "room", "course", "section"}
+	headers := []string{"day", "time", "room", "course", "section", "lab"}
 	var rows [][]string
 	for _, day := range days {
 		label := dayNames[day]
@@ -150,9 +150,9 @@ func busyRowsToRows(days []string, dayRows map[string][][]string) ([]string, [][
 			label = "Day " + day
 		}
 		for _, r := range dayRows[day] {
-			rec := make([]string, 0, 5)
+			rec := make([]string, 0, 6)
 			rec = append(rec, label)
-			for i := 0; i < 4; i++ {
+			for i := 0; i < 5; i++ {
 				if i < len(r) {
 					rec = append(rec, r[i])
 				} else {
