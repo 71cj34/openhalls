@@ -4,6 +4,7 @@
 *.csv
 
 *.exe
+*.exe~
 *.test
 go.sum
 *.db
