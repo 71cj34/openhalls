@@ -53,13 +53,20 @@ func runCustomQuery() {
 
 // HANDLES CUSTOM SQL
 func runSQLReport(query string, offerFav bool) {
-	cols, rows, full, source, deduped := execCustomOnActiveDB(query)
+	cols, rows, full, source, deduped, hidden := execCustomOnActiveDB(query)
 	if cols == nil {
 		return
 	}
 	if len(rows) == 0 {
+		if hidden > 0 {
+			wrnf("Query matched %d row(s), all hidden (Hide Lab Rooms is on).\n", hidden)
+			return
+		}
 		wrnf("Query ran on %s, 0 rows returned.\n", source)
 		return
+	}
+	if hidden > 0 {
+		dimStyle.Printf("%s%d lab room row(s) hidden (Hide Lab Rooms is on).\n", indent, hidden)
 	}
 	printH2(fmt.Sprintf("Result · %d row(s)%s", len(full), customTruncNote()))
 	if n := queryLimit(query); n > 0 && deduped > 0 && len(full) < n {
@@ -119,6 +126,9 @@ func printCustomHelp() {
 	printText("Rules: single SELECT (or WITH...SELECT) only, one statement,")
 	printText("no semicolon stacking. Capped at 100 rows.")
 	fmt.Println()
+	if hideLabRooms() {
+		warnStyle.Printf("%sHide Lab Rooms is ON: rows from lab rooms are filtered out.\n", indent)
+	}
 	if cur := activeDBFile(); cur != "" {
 		printText("Active term: " + filepath.Base(cur))
 		fmt.Println()
@@ -145,7 +155,6 @@ func normalizeCustomSQL(input string) (string, bool) {
 
 var limitRe = regexp.MustCompile(`(?i)\bLIMIT\s+(\d+)`)
 
-// queryLimit returns the trailing LIMIT n of a single SELECT.
 func queryLimit(query string) int {
 	m := limitRe.FindAllStringSubmatch(query, -1)
 	if len(m) == 0 {
@@ -159,10 +168,10 @@ func queryLimit(query string) int {
 }
 
 // execCustomOnActiveDB runs query once against the active term DB.
-func execCustomOnActiveDB(query string) ([]string, [][]string, [][]string, string, int) {
+func execCustomOnActiveDB(query string) ([]string, [][]string, [][]string, string, int, int) {
 	dbFile := activeDBFile()
 	if dbFile == "" {
-		return nil, nil, nil, "", 0
+		return nil, nil, nil, "", 0, 0
 	}
 	var cols []string
 	var out [][]string
@@ -171,24 +180,39 @@ func execCustomOnActiveDB(query string) ([]string, [][]string, [][]string, strin
 	seen := make(map[string]bool)
 	customTruncated = false
 	deduped := 0
+	hidden := 0
 
 	db, err := sql.Open("sqlite", dbFile)
 	if err != nil {
 		errf("Failed to open %s: %v\n", dbFile, err)
-		return nil, nil, nil, "", 0
+		return nil, nil, nil, "", 0, 0
 	}
 	defer db.Close()
 	rows, err := db.Query(query)
 	if err != nil {
 		errf("Query failed in %s: %v\n", filepath.Base(dbFile), err)
-		return nil, nil, nil, "", 0
+		return nil, nil, nil, "", 0, 0
 	}
 	defer rows.Close()
 	cols, err = rows.Columns()
 	if err != nil {
 		errf("Could not read columns: %v\n", err)
-		return nil, nil, nil, "", 0
+		return nil, nil, nil, "", 0, 0
 	}
+
+	hideLabs := hideLabRooms()
+	var labs map[string]bool
+	roomCol := -1
+	if hideLabs {
+		labs = labRoomSet()
+		for i, c := range cols {
+			if strings.EqualFold(strings.TrimSpace(c), "room") {
+				roomCol = i
+				break
+			}
+		}
+	}
+
 	hit := false
 	for rows.Next() {
 		vals := make([]any, len(cols))
@@ -204,6 +228,11 @@ func execCustomOnActiveDB(query string) ([]string, [][]string, [][]string, strin
 		for i := range vals {
 			cells[i] = customCell(cols[i], vals[i])
 			raw[i] = rawCell(vals[i])
+		}
+		if hideLabs && roomCol >= 0 && labs[strings.TrimSpace(raw[roomCol])] {
+			hidden++
+			hit = true
+			continue
 		}
 		key := strings.Join(cells, "\x1f")
 		if seen[key] {
@@ -224,9 +253,9 @@ func execCustomOnActiveDB(query string) ([]string, [][]string, [][]string, strin
 		source = filepath.Base(dbFile)
 	}
 	if cols == nil {
-		return nil, nil, nil, "", 0
+		return nil, nil, nil, "", 0, 0
 	}
-	return cols, out, full, source, deduped
+	return cols, out, full, source, deduped, hidden
 }
 
 func rawCell(v any) string {

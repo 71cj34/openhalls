@@ -60,8 +60,6 @@ func runRoomSearch(room string, offerFav bool) {
 	}
 }
 
-// printRoomReport renders one compact table per day plus a free-time
-// summary. One row per class replaces the old 5-line card.
 func printRoomReport(room string, results []entry, sources []string) {
 	building := results[0].building
 	printH2(fmt.Sprintf("%s · %s — %d class(es)", room, building, len(results)))
@@ -197,11 +195,6 @@ func handle4() {
 }
 func handle5() {
 	manageFavorites()
-}
-func handle6() {
-	printH1("Settings")
-	wrnf("Nothing here yet...\n")
-	pause()
 }
 func handle7() {
 	printH1("About")

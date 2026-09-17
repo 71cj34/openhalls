@@ -188,12 +188,16 @@ func printFreeReport(q timeQuery, results []entry, sources []string, labs map[st
 	}
 
 	like := strings.ToLower(q.nameLike)
+	hideLabs := hideLabRooms()
 	dayHits := make(map[string][]roomHit, len(q.days))
 	for _, day := range q.days {
 		label := dayNames[day]
 		var hits []roomHit
 		for room, byDay := range index {
 			if like != "" && !strings.Contains(strings.ToLower(room), like) {
+				continue
+			}
+			if hideLabs && labs[room] {
 				continue
 			}
 			if roomFreeOn(byDay[day], q.start, q.end) {
@@ -219,6 +223,10 @@ func printFreeReport(q timeQuery, results []entry, sources []string, labs map[st
 			continue
 		}
 		sectionStyle.Printf("%s%s — %d free\n", indent, label, len(hits))
+		headers := []string{"Room", "Building", "Free", "Next class"}
+		if !hideLabs {
+			headers = append(headers, "Lab")
+		}
 		rows := make([][]string, 0, min(q.limit, len(hits)))
 		for i, h := range hits {
 			if i >= q.limit {
@@ -228,9 +236,13 @@ func printFreeReport(q timeQuery, results []entry, sources []string, labs map[st
 			if h.next != nil {
 				next = fmt.Sprintf("%s (%s)", fmtClock(h.next.start), h.next.course)
 			}
-			rows = append(rows, []string{h.room, h.building, "until " + fmtClock(h.until), next, labMark(h.isLab)})
+			row := []string{h.room, h.building, "until " + fmtClock(h.until), next}
+			if !hideLabs {
+				row = append(row, labMark(h.isLab))
+			}
+			rows = append(rows, row)
 		}
-		printTable([]string{"Room", "Building", "Free", "Next class", "Lab"}, rows)
+		printTable(headers, rows)
 		if len(hits) > q.limit {
 			dimStyle.Printf("%s… and %d more (refine with a room filter)\n", indent, len(hits)-q.limit)
 		}
@@ -255,6 +267,7 @@ func printBusyReport(q timeQuery, results []entry, sources []string, labs map[st
 	}
 
 	like := strings.ToLower(q.nameLike)
+	hideLabs := hideLabRooms()
 	dayRows := make(map[string][][]string, len(q.days))
 	for _, day := range q.days {
 		label := dayNames[day]
@@ -266,16 +279,22 @@ func printBusyReport(q timeQuery, results []entry, sources []string, labs map[st
 			if like != "" && !strings.Contains(strings.ToLower(e.room), like) {
 				continue
 			}
+			if hideLabs && labs[e.room] {
+				continue
+			}
 			if !overlaps(e.start, e.end, q.start, q.end) {
 				continue
 			}
-			rows = append(rows, []string{
+			row := []string{
 				fmt.Sprintf("%s–%s", fmtClock(e.start), fmtClock(e.end)),
 				e.room,
 				e.course,
 				e.section,
-				labMark(labs[e.room]),
-			})
+			}
+			if !hideLabs {
+				row = append(row, labMark(labs[e.room]))
+			}
+			rows = append(rows, row)
 		}
 		sort.Slice(rows, func(i, j int) bool {
 			if rows[i][0] != rows[j][0] {
@@ -299,7 +318,11 @@ func printBusyReport(q timeQuery, results []entry, sources []string, labs map[st
 			dimStyle.Printf("%sShowing %d of %d (refine with a room filter)\n", indent, q.limit, len(rows))
 			rows = rows[:q.limit]
 		}
-		printTable([]string{"Time", "Room", "Course", "Section", "Lab"}, rows)
+		headers := []string{"Time", "Room", "Course", "Section"}
+		if !hideLabs {
+			headers = append(headers, "Lab")
+		}
+		printTable(headers, rows)
 	}
 	labLegend(labCountBusy(dayRows))
 	fmt.Println()
