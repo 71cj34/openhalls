@@ -94,11 +94,16 @@ func printCourseReport(course, title string, results []entry, sources []string) 
 		dimStyle.Printf("%sTerms: %s\n", indent, strings.Join(sources, ", "))
 	}
 
+	limit := loadSettings().searchResultLimit()
+	shown := 0
 	for _, s := range sections {
 		fmt.Println()
 		sectionStyle.Printf("%s%s — %s\n", indent, s.section, s.pattern())
-		rows := make([][]string, 0, len(s.rows))
+		rows := make([][]string, 0, min(len(s.rows), limit-shown))
 		for _, e := range s.rows {
+			if shown >= limit {
+				break
+			}
 			rows = append(rows, []string{
 				dayNames[e.day],
 				fmt.Sprintf("%s–%s", fmtClock(e.start), fmtClock(e.end)),
@@ -106,8 +111,17 @@ func printCourseReport(course, title string, results []entry, sources []string) 
 				e.building,
 				e.room,
 			})
+			shown++
 		}
-		printTable([]string{"Day", "Time", "Dur", "Building", "Room"}, rows)
+		if len(rows) > 0 {
+			printTable([]string{"Day", "Time", "Dur", "Building", "Room"}, rows)
+		}
+		if shown >= limit {
+			break
+		}
+	}
+	if len(results) > limit {
+		dimStyle.Printf("%sShowing %d of %d meeting(s) (increase Search Result Limit to show more)\n", indent, limit, len(results))
 	}
 	fmt.Println()
 }

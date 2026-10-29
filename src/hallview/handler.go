@@ -72,6 +72,8 @@ func printRoomReport(room string, results []entry, sources []string) {
 		byDay[e.day] = append(byDay[e.day], e)
 	}
 
+	limit := loadSettings().searchResultLimit()
+	shown := 0
 	for _, day := range dayOrder {
 		classes := byDay[day]
 		label := dayNames[day]
@@ -85,9 +87,14 @@ func printRoomReport(room string, results []entry, sources []string) {
 		}
 		summary := summarizeFree(classes)
 		fmt.Println()
+		remaining := limit - shown
+		if remaining <= 0 {
+			break
+		}
 		sectionStyle.Printf("%s%s (%d)\n", indent, label, len(classes))
-		rows := make([][]string, 0, len(classes))
-		for _, e := range classes {
+		shownClasses := classes[:min(len(classes), remaining)]
+		rows := make([][]string, 0, len(shownClasses))
+		for _, e := range shownClasses {
 			rows = append(rows, []string{
 				fmt.Sprintf("%s–%s", fmtClock(e.start), fmtClock(e.end)),
 				fmtDur(e.end - e.start),
@@ -95,8 +102,12 @@ func printRoomReport(room string, results []entry, sources []string) {
 				e.section,
 			})
 		}
+		shown += len(shownClasses)
 		printTable([]string{"Time", "Dur", "Course", "Section"}, rows)
 		freeStyle(summary.hasFree).Printf("%sFree: %s\n", indent, summary.text)
+	}
+	if len(results) > limit {
+		dimStyle.Printf("%sShowing %d of %d class(es) (increase Search Result Limit to show more)\n", indent, limit, len(results))
 	}
 	fmt.Println()
 }

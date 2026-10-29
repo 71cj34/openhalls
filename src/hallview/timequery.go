@@ -62,7 +62,7 @@ func handle2() {
 
 func runTimeReport(q timeQuery, results []entry, sources []string, offerFav bool) {
 	if q.limit <= 0 {
-		q.limit = 30
+		q.limit = loadSettings().searchResultLimit()
 	}
 	labs := labRoomSet()
 	if q.freeMode {
@@ -106,7 +106,7 @@ func runTimeQuery(q timeQuery) {
 }
 
 func promptTimeQuery() (timeQuery, queryAction) {
-	q := timeQuery{limit: 30}
+	q := timeQuery{limit: loadSettings().searchResultLimit()}
 
 	line, back := readInputLine("Day(s) [Mon-Fri, e.g. Mon,Wed or Mon-Fri, empty = back]: ")
 	if back || strings.TrimSpace(line) == "" {
@@ -244,7 +244,7 @@ func printFreeReport(q timeQuery, results []entry, sources []string, labs map[st
 		}
 		printTable(headers, rows)
 		if len(hits) > q.limit {
-			dimStyle.Printf("%s… and %d more (refine with a room filter)\n", indent, len(hits)-q.limit)
+			dimStyle.Printf("%s… and %d more (increase Search Result Limit to show more)\n", indent, len(hits)-q.limit)
 		}
 		if len(hits) > 0 {
 			dayHits[day] = hits
@@ -315,7 +315,7 @@ func printBusyReport(q timeQuery, results []entry, sources []string, labs map[st
 			dayRows[day] = full
 		}
 		if len(rows) > q.limit {
-			dimStyle.Printf("%sShowing %d of %d (refine with a room filter)\n", indent, q.limit, len(rows))
+			dimStyle.Printf("%sShowing %d of %d (increase Search Result Limit to show more)\n", indent, q.limit, len(rows))
 			rows = rows[:q.limit]
 		}
 		headers := []string{"Time", "Room", "Course", "Section"}

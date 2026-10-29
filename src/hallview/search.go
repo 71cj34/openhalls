@@ -59,9 +59,12 @@ func fuzzyPick(noun string, candidates map[string]string, input string) (string,
 		return "", false
 	}
 
-	const limit = 5
-	showing := min(limit, len(scored))
-	printH2(fmt.Sprintf("%d match(es), showing %d", len(scored), showing))
+	matchCount := len(scored)
+	limit := loadSettings().autofillSearchLimit()
+	showing := min(limit, matchCount)
+
+	scored = scored[:showing]
+	printH2(fmt.Sprintf("%d match(es), showing %d", matchCount, showing))
 	rows := make([][]string, 0, showing)
 	for i := 0; i < showing; i++ {
 		rows = append(rows, []string{fmt.Sprintf("%d", i+1), scored[i].value, scored[i].label})

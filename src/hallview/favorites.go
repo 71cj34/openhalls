@@ -236,7 +236,7 @@ func runFavorite(fav Favorite) {
 			end:      fav.End,
 			freeMode: fav.FreeMode,
 			nameLike: fav.NameLike,
-			limit:    30,
+			limit:    loadSettings().searchResultLimit(),
 		})
 	case "sql":
 		printH1("Custom SQL Query")
