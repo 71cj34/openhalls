@@ -8,3 +8,5 @@
 *.test
 go.sum
 *.db
+
+cookie.txt
