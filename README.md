@@ -8,6 +8,12 @@ This tool is very helpful if you want to sit in on a course's lectures, find out
 
 # Usage
 
+## Agent Install
+
+I had GPT-6 slop up a installation guide in `./agent_install.md`, so you can point your favorite AI agent at that to install openhalls if you want.
+
+I did not try it, your results may vary. I still recommend reading the manual install instructions below!!
+
 ## Scraping data (Python)
 
 Get the source code. You can do this through `git clone https://github.com/71cj34/openhalls` or by downloading the source code .zip in the releases section. Make the source code folder your CWD.
@@ -60,6 +66,10 @@ Once you have the .exe, place it somewhere in the folder structure between the r
 
 Settings:
 - **Hide Lab Rooms**: Rooms that are used for labs are also included, but since they're usually locked or are really uncomfortable to be in for anything that isn't the lab, this option allows you to automatically hide any rooms that have lab sections in them.
+- **Autofill Search Limit**: How many rooms to show you in the autofill results when you mistype or type a partial string.
+  - Does not apply to custom SQL search.
+- **Search Result Limit**: How many rows to show you in the search results by time and such.
+  - Does not apply to custom SQL search.
 
 ### Why is all this so complicated?
 
